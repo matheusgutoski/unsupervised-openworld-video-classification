@@ -221,6 +221,75 @@ def extract_features(old_model, x_train, y_train, x_test, y_test, class_indexes,
         return np.squeeze(x_train_features), np.squeeze(x_test_features)
 
 
+
+
+def init_ti3d(params):
+        from keras.layers import Input, Conv2D, Lambda, Dense, Flatten, concatenate, Dropout
+        from keras.models import Model, Sequential
+        from keras.regularizers import l2
+        from keras import backend as K
+        from keras.optimizers import SGD,Adam
+        #import data_generator_openset as gen
+        #import utils
+        np.random.seed(2020)
+
+        def cos_distance(y_true, y_pred, vects_are_normalized=False):
+                x, y = y_true, y_pred
+                if not vects_are_normalized:
+                        x = K.l2_normalize(x, axis=-1)
+                        y = K.l2_normalize(y, axis=-1)
+                similarity = K.batch_dot(x, y, axes=1)
+                distance = K.constant(1) - similarity
+                return K.squeeze(distance, axis=-1)
+
+        def triplet_loss_wrapper(alpha = 0.2):
+                def triplet_loss_inner(y_true, y_pred):
+                        total_lenght = y_pred.shape.as_list()[-1]
+                        anchor = y_pred[:,0:int(total_lenght*1/3)]
+                        positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
+                        negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+
+                        pos_dist = cos_distance(anchor, positive)
+                        neg_dist = cos_distance(anchor, negative)
+
+                        basic_loss = pos_dist-neg_dist+alpha
+                        loss = K.maximum(basic_loss,0.0)
+                        return loss
+                return triplet_loss_inner
+
+        def create_base_network():
+                np.random.seed(2020)
+                model = Sequential()
+                model.add(Dense(512,name='input', input_shape = (1024,), kernel_initializer='glorot_uniform'))
+                #model.add(Dropout(0.1,name='noise'))
+                model.add(Dense(256, kernel_initializer='glorot_uniform'))
+                model.summary()
+                return model
+
+        sgd_optim = SGD(lr=params['triplet_lr'])
+        anchor_input = Input((1024,), name='anchor_input')
+        positive_input = Input((1024, ), name='positive_input')
+        negative_input = Input((1024, ), name='negative_input')
+
+        # Shared embedding layer for positive and negative items
+        Shared_DNN = create_base_network()
+
+        encoded_anchor = Shared_DNN(anchor_input)
+        encoded_positive = Shared_DNN(positive_input)
+        encoded_negative = Shared_DNN(negative_input)
+
+        merged_vector = concatenate([encoded_anchor, encoded_positive, encoded_negative], axis=-1, name='merged_layer')
+
+        model = Model(inputs=[anchor_input,positive_input, negative_input], outputs=merged_vector)
+        model.compile(loss=triplet_loss_wrapper(params['margin']), optimizer=sgd_optim)
+
+        
+        return model
+
+
+        
+
+
 def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model = None):
         from keras.layers import Input, Conv2D, Lambda, Dense, Flatten, concatenate, Dropout
         from keras.models import Model, Sequential
@@ -230,6 +299,9 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         #import data_generator_openset as gen
         #import utils
         np.random.seed(2020)
+
+
+
 
         def cos_distance(y_true, y_pred, vects_are_normalized=False):
                 x, y = y_true, y_pred
@@ -357,11 +429,11 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         #int_y_train = utils.convert_labels_to_int(y_train, dict_map)
         #int_y_test = utils.convert_labels_to_int(y_test, dict_map)
 
+        print(type(params), params)
         sgd_optim = SGD(lr=params['triplet_lr'])
 
 
-
-
+        
         anchor_input = Input((1024,), name='anchor_input')
         positive_input = Input((1024, ), name='positive_input')
         negative_input = Input((1024, ), name='negative_input')

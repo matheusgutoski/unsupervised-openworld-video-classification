@@ -110,12 +110,11 @@ if __name__ == '__main__':
 	initial_train, initial_train_labels, initial_test, initial_test_labels = utils.train_test_split_groups(filenames, initial_classes, params)
 	int_initial_train_labels = utils.convert_labels_to_int(initial_train_labels, dict_map)
 	int_initial_test_labels = utils.convert_labels_to_int(initial_test_labels, dict_map)
+	#open_y_test = [x if x in int_y_train else 0 for x in int_y_test]
 
-	
 
 
 	#train i3d
-
 	all_categories_train_fold = gen.get_all_categories(initial_train) 
 	dict_map_train_fold = utils.map_labels(all_categories_train_fold)
 	all_categories_test_fold = gen.get_all_categories(initial_test)
@@ -124,7 +123,7 @@ if __name__ == '__main__':
 
 	try:
 		model = utils.load_i3d_model(params)
-		x_train_features,_, x_test_features,__ = utils.load_features(params)
+		x_train_features, x_test_features, _ ,__ = utils.load_features(params)
 	except:
 		#model, hist_cnn = finetune_i3d.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
 		x_train_features, x_test_features = finetune_i3d.extract_features(model, initial_train, initial_train_labels, initial_test, initial_test_labels, dict_map_test_fold, params)
@@ -134,12 +133,24 @@ if __name__ == '__main__':
 
 	#train ti3d
 
-	input('jeje')
 
 	#train triplet net and extract features
-	x_train_features_triplet, x_test_features_triplet, hist_triplet = finetune_i3d.finetune_triplet_net(x_train_features, int_initial_train_labels, x_test_features, int_initial_test_labels, params)
-	print(x_train_features_triplet.shape)
-	input()
+	try:
+		ti3d_model = utils.load_ti3d_model(params)
+		x_train_features_ti3d, x_test_features_ti3d, _, __ = utils.load_ti3d_features(params)
+
+	except Exception as e:
+		print(e)
+		x_train_features_ti3d, x_test_features_ti3d, hist_triplet, ti3d_model = finetune_i3d.finetune_triplet_net(x_train = x_train_features, int_y_train = int_initial_train_labels, x_test = x_test_features, params = params)
+		utils.save_ti3d_model(ti3d_model, params) #very expensive storage
+		utils.save_ti3d_features(x_train_features_ti3d, x_test_features_ti3d, int_initial_train_labels, int_initial_test_labels, int_initial_test_labels , params)
+		K.clear_session() # this is very important
+
+		print(x_train_features_ti3d.shape)
+	
+	x_train_features_ti3d, x_test_features_ti3d, hist_triplet, ti3d_model = finetune_i3d.finetune_triplet_net(x_train = x_train_features, int_y_train = int_initial_train_labels, x_test = x_test_features, params = params, warm_start_model = ti3d_model)
+
+	input('jaja')
 	#train evm
 
 	#evaluate
