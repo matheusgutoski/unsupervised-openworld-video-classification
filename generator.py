@@ -137,22 +137,36 @@ def random_class_picker(classes, params):
 	random.seed(2021)
 
 
-	remaining_classes = classes
+	remaining_classes = classes.copy()
 
 	try:
 		selected_classes = np.random.choice(remaining_classes, random.randint(params['min_classes'], params['max_classes']), replace = False).tolist()
 	except Exception as e:
 		print(e)
 		print('returning all remaining classes')
-		selected_classes = remaining_classes
-
+		selected_classes = remaining_classes.copy()
+	
 	for s in selected_classes:
 		remaining_classes.remove(s)
 
 	if len(remaining_classes) == 1:
 		selected_classes.append(remaining_classes[0])
+		remaining_classes.remove(remaining_classes[0])
+
 
 	return selected_classes, remaining_classes
+
+
+
+
+
+
+
+
+
+
+
+
 
 '''
 params = {}

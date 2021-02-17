@@ -154,9 +154,9 @@ def load_ti3d_model(params):
         import finetune_i3d
         model = finetune_i3d.init_ti3d(params)
 
-        weights = model.load_weights(output_path + 'ti3d_model.h5') 
+        model.load_weights(output_path + 'ti3d_model.h5')
 
-        return model
+        return model.get_weights()
 
 def save_evm_models(evms,params):
  
@@ -229,6 +229,33 @@ def save_evm_models(evms,params):
         #load with pickle.load(open('evms.pickle', 'rb'))
 
         save_weibulls_parameters(evms, params, output_path)
+
+
+
+def load_evm_model(params):
+ 
+
+
+        print ('loading evms...')
+        output_path = params['output_path']
+        exp_id = gen_exp_id(params)
+
+        output_path += exp_id
+        output_path += str(params['fold']) + '/'
+        output_path += str(params['model_type']) + '/'
+        #makedirs(output_path)
+
+
+        import pickle
+        
+        #dbfile = open(output_path + 'evms.pickle', 'wb')
+
+        #pickle.dump(evms, dbfile)
+        #load with 
+        evms = pickle.load(open(output_path + 'evms.pickle', 'rb'))
+
+        return evms
+
 
 
 def save_features(x_train_features, x_test_features, y_train, y_test, open_y_test, params):
@@ -335,4 +362,19 @@ def read_pickle_results_file(filename = 'results.pickle'):
         results = pickle.load(infile)
         infile.close()
         return results
+
+
+def build_observation_matrix(labels):
+	labels = np.array(labels)
+	len = labels.shape[0]
+	obs_m = np.zeros((len,len))
+
+
+	for row in range(len):
+		cols = range(row,len) # change to row+1 to avoid the diagonal
+		for col in cols:
+			if(labels[row]==labels[col]):
+				obs_m[row,col]=1
+			
+	return obs_m
 
