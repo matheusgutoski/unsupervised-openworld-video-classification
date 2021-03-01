@@ -73,3 +73,24 @@ def increment_evm(evms, x_train, y_train, params):
 
 	return evms
 
+
+def extreme_vectors_idx(evms):
+	extreme_vector_idx = []
+	labels = []
+	for key,evm in evms.items():
+		labels.append(key)
+	for evm in evms:
+		extreme_vector_idx.append(evms[evm]._extreme_vectors)
+
+	print('extreme vector indexes:',extreme_vector_idx)
+	print('extreme vector labels:', labels)
+	return extreme_vector_idx, labels
+
+
+def extreme_vectors(evms):
+	extreme_vectors = []
+	for evm in evms:
+		extreme_vectors.append(evms[evm]._positives[evms[evm]._extreme_vectors])
+
+	extreme_vectors = np.vstack(extreme_vectors)
+	return extreme_vectors

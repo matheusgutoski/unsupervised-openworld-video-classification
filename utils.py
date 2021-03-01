@@ -88,6 +88,7 @@ def generate_report(youdens_index, closed_f1_score, classif_rep, cm, params):
         output_path += exp_id
         output_path += str(params['fold']) + '/'
         output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
         output_path += str(params['classification_threshold']) + '/'
         makedirs(output_path)
 
@@ -100,6 +101,57 @@ def generate_report(youdens_index, closed_f1_score, classif_rep, cm, params):
         outfile.write('closed f1 score:' + str(closed_f1_score) + '\n')
 
         outfile.close()
+
+
+def generate_clustering_report(x,y,pred, params, **kwargs):
+	import evaluation
+
+	output_path = params['output_path']
+	exp_id = gen_exp_id(params)
+
+	output_path += exp_id
+	output_path += str(params['fold']) + '/'
+	output_path += str(params['model_type']) + '/'
+	output_path += str(params['iteration']) + '/'
+	output_path += str(params['classification_threshold']) + '/'
+	makedirs(output_path)
+
+	results = evaluation.clustering_metrics(x,y,pred)
+
+	f = open(output_path+'clustering_report.txt', 'w')
+
+
+	f.write('Ground truth number of clusters = ' + str(results['n_clusters_gt'])+'\n')
+	f.write('Number of clusters found = '+str(results['k'])+'\n')
+
+	#check kwargs for additional info
+	if kwargs.get('additional_info') is not None:
+		dict = kwargs.get('additional_info')
+		for key,value in dict.items():
+			print(key,value)
+			f.write(str(key)+': ' +str(value)+'\n')
+
+	f.write('\nHomogeneity: '+str(results['homogeneity'])+'\n')
+	f.write('Completeness: '+str(results['completeness'])+'\n')	
+	f.write('V-measure: '+str(results['vmeasure'])+'\n')	
+	f.write('Adjusted Rand score: '+str(results['adjusted_rand'])+'\n')
+	f.write('Adjusted mutual info: '+str(results['adjusted_mutual_info'])+'\n')	
+	f.write('Calinski Harabasz score: '+str(results['calinski_harabasz'])+'\n')
+	f.write('Davies Bouldin score: '+str(results['davies_bouldin'])+'\n')
+	f.write('Fowlkes Mallows score: '+str(results['fowlkes_mallows'])+'\n')
+	f.write('Mutual Info score: '+str(results['mutual_info'])+'\n')
+	f.write('Normalized Mutual Info score: '+str(results['normalized_mutual_info'])+'\n')
+	f.write('Silhouette score (Euclidean distance): '+str(results['silhouette_score_euc'])+'\n')
+	f.write('Silhouette score (Cosine distance): '+str(results['silhouette_score_cos'])+'\n')
+ 
+
+	f.write('\n\n')
+
+	f.close()
+
+
+
+
 
 def save_i3d_model(model, params):
         if params['model'] != 'kinetics':
@@ -258,7 +310,7 @@ def load_evm_model(params):
 
 
 
-def save_features(x_train_features, x_test_features, y_train, y_test, open_y_test, params):
+def save_features(x_train_features, x_test_features, y_train, y_test, open_y_test, params, prefix = ''):
         print ('saving features...')
         output_path = params['output_path']
         exp_id = gen_exp_id(params)
@@ -266,15 +318,17 @@ def save_features(x_train_features, x_test_features, y_train, y_test, open_y_tes
         output_path += exp_id
         output_path += str(params['fold']) + '/'
         output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
+
         makedirs(output_path)
 
-        np.save(output_path + 'x_train_features.npy', x_train_features)
-        np.save(output_path + 'x_test_features.npy', x_test_features)
-        np.save(output_path + 'y_train.npy', y_train)
-        np.save(output_path + 'y_test.npy', y_test)
-        np.save(output_path + 'open_y_test.npy', open_y_test)
+        np.save(output_path + prefix + 'x_train_features.npy', x_train_features)
+        np.save(output_path + prefix + 'x_test_features.npy', x_test_features)
+        np.save(output_path + prefix + 'y_train.npy', y_train)
+        np.save(output_path + prefix + 'y_test.npy', y_test)
+        np.save(output_path + prefix +  'open_y_test.npy', open_y_test)
 
-def save_ti3d_features(x_train_features, x_test_features, y_train, y_test, open_y_test, params):
+def save_ti3d_features(x_train_features, x_test_features, y_train, y_test, open_y_test, params, prefix=''):
         print ('saving features...')
         output_path = params['output_path']
         exp_id = gen_exp_id(params)
@@ -282,13 +336,15 @@ def save_ti3d_features(x_train_features, x_test_features, y_train, y_test, open_
         output_path += exp_id
         output_path += str(params['fold']) + '/'
         output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
+
         makedirs(output_path)
 
-        np.save(output_path + 'x_train_features_ti3d.npy', x_train_features)
-        np.save(output_path + 'x_test_features_ti3d.npy', x_test_features)
-        np.save(output_path + 'y_train.npy', y_train)
-        np.save(output_path + 'y_test.npy', y_test)
-        np.save(output_path + 'open_y_test.npy', open_y_test)
+        np.save(output_path + prefix + 'x_train_features_ti3d.npy', x_train_features)
+        np.save(output_path + prefix + 'x_test_features_ti3d.npy', x_test_features)
+        np.save(output_path + prefix + 'y_train.npy', y_train)
+        np.save(output_path + prefix + 'y_test.npy', y_test)
+        np.save(output_path + prefix + 'open_y_test.npy', open_y_test)
 
 
 def save_hist(hist, params):
@@ -325,34 +381,37 @@ def save_hist_triplet(hist, params):
 
                 pickle.dump(hist, dbfile)
         
-def load_features(params):
+def load_features(params,prefix=''):
         print ('loading features')
         output_path = params['output_path']
         exp_id = gen_exp_id(params)
         output_path += exp_id
         output_path += str(params['fold']) + '/'
         output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
 
-        x = np.load(output_path + 'x_train_features.npy')
-        y = np.load(output_path + 'x_test_features.npy')
+        x = np.load(output_path + prefix + 'x_train_features.npy')
+        y = np.load(output_path + prefix + 'x_test_features.npy')
 
-        w = np.load(output_path + 'y_train.npy')
-        z = np.load(output_path + 'y_test.npy')
+        w = np.load(output_path + prefix + 'y_train.npy')
+        z = np.load(output_path + prefix + 'y_test.npy')
         return x, y, w, z
 
-def load_ti3d_features(params):
+def load_ti3d_features(params, prefix=''):
         print ('loading ti3d features')
         output_path = params['output_path']
         exp_id = gen_exp_id(params)
         output_path += exp_id
         output_path += str(params['fold']) + '/'
         output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
 
-        x = np.load(output_path + 'x_train_features_ti3d.npy')
-        y = np.load(output_path + 'x_test_features_ti3d.npy')
 
-        w = np.load(output_path + 'y_train.npy')
-        z = np.load(output_path + 'y_test.npy')
+        x = np.load(output_path + prefix + 'x_train_features_ti3d.npy')
+        y = np.load(output_path + prefix + 'x_test_features_ti3d.npy')
+
+        w = np.load(output_path + prefix + 'y_train.npy')
+        z = np.load(output_path + prefix + 'y_test.npy')
         return x, y, w, z
 
 

@@ -390,6 +390,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
 
                 unique_y = np.unique(y)
                 train_triplets = []
+                print('unique classes:',unique_y)
                 for un in unique_y:
                         #print ('generating triplets for class', un)
                         current_class_idx = np.where(y == un)[0]
@@ -415,8 +416,13 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                         positive_idx = list(set(range(current_class_data.shape[0])) ^ set(perm))
                         positives = current_class_data[positive_idx].copy()
                         positives_embeddings = current_class_embeddings[positive_idx].copy()
-
                         
+                        print(len(anchors_embeddings), len(positives_embeddings))
+                        if(len(anchors_embeddings) == 0 or len(positives_embeddings) == 0):
+                                print('Could not form anchor positive pairs for class',un)
+                                input('?')
+                                continue
+                                
                         anchor_positive_distances = cosine_distances(anchors_embeddings, positives_embeddings)
                         anchor_negative_distances = cosine_distances(anchors_embeddings, negatives_embeddings)
 
@@ -455,7 +461,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                         print ('could not generate any more triplets that meet the requirements.')
                         return None
                 train_triplets = np.vstack(train_triplets)
-                #print ('total triplets:',train_triplets.shape)
+                print ('total triplets:',train_triplets.shape)
                 return train_triplets
 
 
@@ -488,7 +494,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         model.compile(loss=triplet_loss_wrapper(params['margin']), optimizer=sgd_optim)
 
         if warm_start_model is not None:
-                model.set_weights(warm_start_model.get_weights())
+                model.set_weights(warm_start_model)
        
 
         model.summary()
