@@ -420,7 +420,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                         print(len(anchors_embeddings), len(positives_embeddings))
                         if(len(anchors_embeddings) == 0 or len(positives_embeddings) == 0):
                                 print('Could not form anchor positive pairs for class',un)
-                                input('?')
+                                #input('?')
                                 continue
                                 
                         anchor_positive_distances = cosine_distances(anchors_embeddings, positives_embeddings)
@@ -524,7 +524,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         X_test_trm = trained_model.predict(x_test)
 
         #K.clear_session() # this is very important
-        return X_train_trm, X_test_trm, hist_triplet, model
+        return X_train_trm, X_test_trm, hist_triplet, model.get_weights()
 
 
 

@@ -43,7 +43,7 @@ def predict(evms, x_test, params):
         return predictions
 
 
-def increment_evm(evms, x_train, y_train, params):
+def increment_evm_fixed_rep(evms, x_train, y_train, params):
 	
 	print('incrementing evms...')
 
@@ -94,3 +94,36 @@ def extreme_vectors(evms):
 
 	extreme_vectors = np.vstack(extreme_vectors)
 	return extreme_vectors
+
+
+def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, new_train_labels, params):
+	print('Training incremental evms...')
+	evms = {}
+	
+	for cl in np.unique(extreme_vectors_labels): # train one evm for each extreme vector class
+		print ('training evm for extreme vector class', cl)
+		#separate the positive class from the rest
+		positives = [x for i,x in enumerate(extreme_vectors) if extreme_vectors_labels[i] == cl]
+		negatives = [x for i,x in enumerate(extreme_vectors) if extreme_vectors_labels[i] != cl]
+
+		negatives = negatives + new_train_features.tolist()
+		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = None, distance_function=scipy.spatial.distance.cosine)
+		evm.train(positives = positives, negatives = negatives, parallel = 8)
+		evms[cl] = evm
+
+	for cl in np.unique(new_train_labels): # train one evm for each extreme vector class
+		print ('training evm for new class', cl)
+		#separate the positive class from the rest
+		positives = [x for i,x in enumerate(new_train_features) if new_train_labels[i] == cl]
+		negatives = [x for i,x in enumerate(new_train_features) if new_train_labels[i] != cl]
+
+		negatives = negatives + extreme_vectors.tolist()
+		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.cosine)
+		evm.train(positives = positives, negatives = negatives, parallel = 8)
+		evms[cl] = evm
+
+
+
+
+
+	return evms

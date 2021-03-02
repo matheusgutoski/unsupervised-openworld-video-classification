@@ -78,6 +78,7 @@ if __name__ == '__main__':
 
 	#parameters for the triplet net
 	params['triplet_epochs'] = args.triplet_epochs
+	params['triplet_epochs_incremental'] = 1
 	params['margin'] = args.margin
 	params['triplet_lr'] = args.triplet_lr
 	params['triplet_batch_size'] = args.triplet_batch_size
@@ -389,15 +390,16 @@ if __name__ == '__main__':
 
 		#get rejected set (train)
 		if params['ignore_errors'] == True:
-			rejected_set_idx= np.where(np.array(int_new_train_labels)==0)[0]
-			rejected_set_features= np.array(new_train_triplet_features)[rejected_set_idx].copy()
-			rejected_set_labels = np.array(int_new_train_labels)[rejected_set_idx].copy()
+			rejected_set_features_ti3d = np.array(new_train_triplet_features)
+			rejected_set_features_i3d = np.array(new_train_features)
+			rejected_set_labels = np.array(int_new_train_labels)
 		else:
 			for current_th in multi_classification_threshold:
 				params['classification_threshold'] = current_th
 				pred = evm.predict(evms_triplet, new_train_triplet_features, params)
 				rejected_set_idx = np.where(np.array(pred)==0)[0]
-				rejected_set_features = np.array(new_train_triplet_features)[rejected_set_idx].copy() 
+				rejected_set_features_ti3d = np.array(new_train_triplet_features)[rejected_set_idx].copy() 
+				rejected_set_features_i3d = np.array(new_train_features)[rejected_set_idx].copy() 
 				rejected_set_labels = np.array(int_new_train_labels)[rejected_set_idx].copy()
 				print(pred)
 		
@@ -436,6 +438,7 @@ if __name__ == '__main__':
 		full_phase_2_open_set_labels = [x if x in known_data_labels else 0 for x in full_phase_2_labels]
 		
 
+		#evaluate on merged sets
 		for current_th in multi_classification_threshold:      
 			params['classification_threshold'] = current_th
 			params['model_type'] = 'phase_2'
@@ -455,7 +458,6 @@ if __name__ == '__main__':
 			utils.generate_clustering_report(full_phase_2_data,full_phase_2_open_set_labels,pred, params)
 
 
-		input('1')
 
 
 		#end phase 2
@@ -466,13 +468,14 @@ if __name__ == '__main__':
 
 		#phase 3								-----------------------
 		
+		print(rejected_set_features_ti3d)
 		#estimate number of clusters in the rejected set
 
 		top_k = 5
-		estimated_k, gaps = k_estimator.estimate_dendrogap(rejected_set_features_true,top_k, normalize_data = True)
-		estimated_k = k_estimator.best_silhouette(rejected_set_features_true, estimated_k, metric = 'cosine')
+		estimated_k, gaps = k_estimator.estimate_dendrogap(rejected_set_features_ti3d,top_k, normalize_data = True)
+		estimated_k = k_estimator.best_silhouette(rejected_set_features_ti3d, estimated_k, metric = 'cosine')
 		print('estimated k:',estimated_k)
-		print('true k', len(np.unique(rejected_set_labels_true)))
+		print('true k', len(np.unique(rejected_set_labels)))
 
 		#cluster with hierarchical agglomerative ward clustering
 
@@ -480,18 +483,25 @@ if __name__ == '__main__':
 		#perform hierarchical
 		print('Performing hierarchical clustering with ward linkage')
 		#get rejected set labels 
-		hierarchical_preds = hierarchical.hierarchical(rejected_set_features_true, n_clusters = estimated_k, affinity = 'euclidean', linkage = 'ward', distance_threshold= None, normalize_data = True)
+
+
+		if params['ignore_errors'] == True:
+			hierarchical_preds = rejected_set_labels
+		else:
+			hierarchical_preds = hierarchical.hierarchical(rejected_set_features_ti3d, n_clusters = estimated_k, affinity = 'euclidean', linkage = 'ward', distance_threshold= None, normalize_data = True)
+		print(hierarchical_preds[0:10])
 		
-		
+
 
 		#assign labels
 		hierarchical_preds = ['new_class_'+str(x)+'_iter_'+str(params['iteration']) for x in hierarchical_preds ]
+		print(hierarchical_preds)
 
 		#evaluate clustering performance
-
+		params['model_type'] = 'phase_3'
 		obs_m = utils.build_observation_matrix(hierarchical_preds)
-		print(evaluation.clustering_metrics(rejected_set_features_true,rejected_set_labels_true,hierarchical_preds))
-		
+		utils.generate_clustering_report(rejected_set_features_ti3d,rejected_set_labels,hierarchical_preds, params)
+
 		#end phase 3
 
 		
@@ -503,19 +513,15 @@ if __name__ == '__main__':
 
 		#phase 4								------------------------
 	
-		#evaluate known test set and unsupervised test set (Before incremental learning)
-		#test_features_ti3d, initial_test_labels / new_test_triplet_features, new_test_labels
 				
-
 		#get extreme vectors in i3d feature space
 		extreme_vectors_features_i3d = []
 		extreme_vectors_labels = []
 		extreme_vectors_idx, extreme_vectors_keys = evm.extreme_vectors_idx(evms_triplet)
 
-		for count,cl in enumerate(np.unique(int_initial_train_labels)): # train one evm for each positive class
-			print ('training evm for class', cl)
+		for count,cl in enumerate(np.unique(int_initial_train_labels)): 
 			#separate the positive class from the rest
-			positives = [x for i,x in enumerate(x_train_features) if int_initial_train_labels[i] == cl]
+			positives = [x for i,x in enumerate(train_features) if int_initial_train_labels[i] == cl]
 			print(positives, len(positives))
 			for evi in extreme_vectors_idx[count]:
 				print(evi)
@@ -524,9 +530,10 @@ if __name__ == '__main__':
 
 
 		extreme_vectors_features_i3d = np.array(extreme_vectors_features_i3d)
-		print(extreme_vectors_features_i3d, extreme_vectors_features_i3d.shape)
-		print(extreme_vectors_labels)
+		#print(extreme_vectors_features_i3d, extreme_vectors_features_i3d.shape)
+		#print(extreme_vectors_labels)
 
+		
 
 
 		'''
@@ -543,41 +550,50 @@ if __name__ == '__main__':
 			print(extreme_vectors.shape,extreme_vectors_t.shape)
 		'''
 
+		
 
-
-
-
-
-		#evaluation before incremental learning
-		for current_th in multi_classification_threshold:      
-			params['classification_threshold'] = current_th
-			params['model_type'] = 'triplet'
-			# classify triplet model data with evm and get classification metrics
-
-
-			preds = evm.predict(evms_triplet, test_features_ti3d, params)
-			print('initial test set')
-			print(evaluation.clustering_metrics(test_features_ti3d,initial_test_labels,preds))
-
-			print('new test set')
-			preds = evm.predict(evms_triplet, new_test_triplet_features, params)
-			print(evaluation.clustering_metrics(new_test_triplet_features,new_test_labels,preds))
 
 
 		#finetune ti3d (incremental mode)
 
-		#something like this
-		x_train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental = finetune_i3d.finetune_triplet_net(x_train = extreme_vectors_features_i3d, int_y_train = extreme_vectors_labels, x_test = test_features, params = params, warm_start_model = ti3d_model)
+		params['triplet_epochs'] = params['triplet_epochs_incremental']
 
-		print(x_train_features_ti3d_incremental)
+		#training set is now extreme vectors and rejected set (i3d features)
+		ti3d_finetune_set = np.concatenate((extreme_vectors_features_i3d,rejected_set_features_i3d))
+		ti3d_finetune_labels = np.concatenate((extreme_vectors_labels,hierarchical_preds))
 
-		input('jaja')		 
+		train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental = finetune_i3d.finetune_triplet_net(x_train = ti3d_finetune_set, int_y_train = ti3d_finetune_labels, x_test = test_features, params = params, warm_start_model = ti3d_model)
+
+		#this is the extreme vectors ti3d incremental representation
+		extreme_vectors_features_ti3d_incremental = train_features_ti3d_incremental[0:extreme_vectors_features_i3d.shape[0]]
+		#this is the new data ti3d incremental representation
+		new_train_features_ti3d_incremental = train_features_ti3d_incremental[extreme_vectors_features_i3d.shape[0]:]
+
+
+
+
 
 		#increment evm 
+		#1)atualizar extreme vectors para os novos e recalcular psis (Treinamento normal usando apenas os extreme vectors como representantes das classes e sem model reduction)
+		#2)treinar as classes novas (com model reduction)
 
-		evms = evm.increment_evm(evms_triplet, rejected_set_features_true, hierarchical_preds, params)
+		updated_evms = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params)
+				 
+		
 
-		#evaluate known test set and unsupervised test set (After incremental learning)
+		#evaluate known test set and new test set (After incremental learning)
+
+		new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_incremental)
+		known_test_triplet_features = finetune_i3d.extract_features_triplet_net(known_data, known_data_labels, params, warm_start_model = ti3d_model_incremental)
+		
+
+		
+		#merge known and new data
+
+		full_phase_4_data = np.concatenate((known_test_triplet_features,new_test_triplet_features))
+		full_phase_4_labels = np.concatenate((known_data_labels,int_new_test_labels))
+		full_phase_4_open_set_labels = [x if x in known_data_labels else 0 for x in full_phase_4_labels]
+
 
 		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
 			params['classification_threshold'] = current_th
@@ -585,16 +601,25 @@ if __name__ == '__main__':
 			# classify triplet model data with evm and get classification metrics
 
 
-			preds = evm.predict(evms_triplet, test_features_ti3d, params)
-			print('initial test set after incrementing evm')
-			print(evaluation.clustering_metrics(test_features_ti3d,initial_test_labels,preds))
-
-			print('new test set after incrementing evm')
-			preds = evm.predict(evms_triplet, new_test_triplet_features, params)
-			print(evaluation.clustering_metrics(new_test_triplet_features,new_test_labels,preds))
-
+			preds = evm.predict(evms_triplet, full_phase_4_data, params)
+			print('Original evm')
+			print(evaluation.clustering_metrics(full_phase_4_data,full_phase_4_labels,preds))
 
 		input('jaja')
+
+		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
+			params['classification_threshold'] = current_th
+			params['model_type'] = 'triplet'
+			# classify triplet model data with evm and get classification metrics
+
+
+			preds = evm.predict(updated_evms, full_phase_4_data, params)
+			print('incremented evm')
+			print(evaluation.clustering_metrics(full_phase_4_data,full_phase_4_labels,preds))
+
+		input('jaja')
+
+
 
 
 		#increment known test set (may be changed later)
