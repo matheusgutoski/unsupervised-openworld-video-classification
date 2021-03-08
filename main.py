@@ -26,7 +26,7 @@ if __name__ == '__main__':
 	parser.add_argument('--frame_height', help='Frame height', type=int, default = 224)
 	parser.add_argument('--frame_width', help='Frame width', type=int, default = 224)
 	parser.add_argument('--max_epochs', help='maximum number of epochs', type=int, default = 10)
-	parser.add_argument('--triplet_epochs', help='triplet net max number of epochs', type=int, default = 50)
+	parser.add_argument('--triplet_epochs', help='triplet net max number of epochs', type=int, default = 10)
 	parser.add_argument('--triplet_lr', help='triplet learning rate with sgd', type=int, default = 0.001)
 	parser.add_argument('--margin', help='triplet net margin parameter', type=float, default = 0.2)
 	parser.add_argument('--batch_size', help='batch size', type=int, default = 6)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 	#set all params
 	params = {}
 	params['min_classes'] = 2
-	params['max_classes'] = 10
+	params['max_classes'] = 3
 	params['seed'] = args.seed
 	params['init_seed'] = params['seed']
 	params['model_type'] = 'cnn'
@@ -188,7 +188,7 @@ if __name__ == '__main__':
 
 	try:
 		params['model_type'] = 'cnn'
-		model = utils.load_i3d_model(params)
+		model, model_weights = utils.load_i3d_model(params,initial_n_classes)
 		train_features, test_features, int_initial_train_labels ,int_initial_test_labels = utils.load_features(params)
 		train_i3d_features.append(train_features)
 		train_i3d_labels.append(int_initial_train_labels)
@@ -198,9 +198,9 @@ if __name__ == '__main__':
 	
 	except:
 		params['model_type'] = 'cnn'
-		model, hist_cnn = finetune_i3d.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
-		train_features, test_features = finetune_i3d.extract_features(model, initial_train, initial_train_labels, initial_test, initial_test_labels, dict_map_test_fold, params)
-		utils.save_i3d_model(model, params) #very expensive storage
+		model, hist_cnn, model_weights = finetune_i3d.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
+		train_features, test_features = finetune_i3d.extract_features(model_weights, initial_train, initial_train_labels, initial_test, initial_test_labels, dict_map_test_fold, params)
+		utils.save_i3d_model(model, model_weights, params) #very expensive storage
 		utils.save_features(train_features, test_features, int_initial_train_labels, int_initial_test_labels, int_initial_test_labels , params)
 		train_i3d_features.append(train_features)
 		test_i3d_features.append(test_features)
@@ -215,14 +215,14 @@ if __name__ == '__main__':
 	#train triplet net and extract features
 	try:
 		params['model_type'] = 'triplet'
-		ti3d_model = utils.load_ti3d_model(params)
+		ti3d_model, ti3d_model_weights = utils.load_ti3d_model(params)
 		train_features_ti3d, test_features_ti3d, _, __ = utils.load_ti3d_features(params)
 
 	except Exception as e:
 		print(e)
 		params['model_type'] = 'triplet'
-		train_features_ti3d, test_features_ti3d, hist_triplet, ti3d_model = finetune_i3d.finetune_triplet_net(x_train = train_features, int_y_train = int_initial_train_labels, x_test = test_features, params = params)
-		utils.save_ti3d_model(ti3d_model, params) #very expensive storage
+		train_features_ti3d, test_features_ti3d, hist_triplet, ti3d_model, ti3d_model_weights = finetune_i3d.finetune_triplet_net(x_train = train_features, int_y_train = int_initial_train_labels, x_test = test_features, params = params)
+		utils.save_ti3d_model(ti3d_model,ti3d_model_weights, params) #very expensive storage
 		utils.save_ti3d_features(train_features_ti3d, test_features_ti3d, int_initial_train_labels, int_initial_test_labels, int_initial_test_labels , params)
 		#K.clear_session() # this is very important
 
@@ -292,7 +292,6 @@ if __name__ == '__main__':
 	#current_classes = initial_classes.copy()
 	#remaining_classes = class_shuffle[initial_n_classes:]
 
-	#class_history = []
 
 	while total_classes < 101:
 		params['iteration'] += 1
@@ -353,8 +352,8 @@ if __name__ == '__main__':
 		except Exception as e:
 			print(e)
 			params['model_type'] = 'cnn'
-			new_train_features = finetune_i3d.extract_features_single(model, new_train, new_train_labels, dict_map_new_train, params, len(np.unique(initial_train_labels)))
-			new_test_features = finetune_i3d.extract_features_single(model, new_test, new_test_labels, dict_map_new_test, params, len(np.unique(initial_train_labels)))
+			new_train_features = finetune_i3d.extract_features_single(model_weights, new_train, new_train_labels, dict_map_new_train, params, len(np.unique(initial_train_labels)))
+			new_test_features = finetune_i3d.extract_features_single(model_weights, new_test, new_test_labels, dict_map_new_test, params, len(np.unique(initial_train_labels)))
 			utils.save_features(new_train_features, new_test_features, int_new_train_labels, int_new_test_labels, int_new_test_labels , params, prefix='phase_2')
 			#np.save('new_train_features_'+str(params['iteration'])+'.npy', new_train_features)
 			#np.save('new_test_features_'+str(params['iteration'])+'.npy', new_test_features)
@@ -374,8 +373,8 @@ if __name__ == '__main__':
 			print(e)
 			params['model_type'] = 'triplet'
 
-			new_train_triplet_features = finetune_i3d.extract_features_triplet_net(new_train_features, new_train_labels, params, warm_start_model = ti3d_model)
-			new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model)
+			new_train_triplet_features = finetune_i3d.extract_features_triplet_net(new_train_features, new_train_labels, params, warm_start_model = ti3d_model_weights)
+			new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_weights)
 			utils.save_ti3d_features(new_train_triplet_features, new_test_triplet_features, int_new_train_labels, int_new_test_labels, int_new_test_labels , params, prefix='phase_2')
 
 			#np.save('new_train_triplet_features_'+str(params['iteration'])+'.npy',new_train_triplet_features)
@@ -411,43 +410,27 @@ if __name__ == '__main__':
 		#get all known classes	
 		known_classes = np.concatenate(class_history).ravel()
 		int_known_classes = utils.convert_labels_to_int(known_classes, dict_map)
-		known_data = []
-		known_data_labels = []
 	
 
-
 		flattened_test_i3d_features, flattened_test_i3d_labels = np.concatenate(test_i3d_features), np.concatenate(test_i3d_labels)
-		for t, tl in zip(flattened_test_i3d_features, flattened_test_i3d_labels):
-			if tl in int_known_classes:
-				known_data.append(t)
-				known_data_labels.append(tl)
-		known_data = np.array(known_data)
-		known_data_labels = np.array(known_data_labels)
-
 		#update all sets with the latest ti3d weights
 
 
-		known_test_triplet_features = finetune_i3d.extract_features_triplet_net(known_data, known_data_labels, params, warm_start_model = ti3d_model)
-		
+		full_test_features_ti3d = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_weights)
+		full_test_labels = flattened_test_i3d_labels.copy()
+		full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
 
-		
-		#merge known and new data
 
-		full_phase_2_data = np.concatenate((known_test_triplet_features,new_test_triplet_features))
-		full_phase_2_labels = np.concatenate((known_data_labels,int_new_test_labels))
-		full_phase_2_open_set_labels = [x if x in known_data_labels else 0 for x in full_phase_2_labels]
-		
-
-		#evaluate on merged sets
+		#evaluate on full test data
 		for current_th in multi_classification_threshold:      
 			params['classification_threshold'] = current_th
 			params['model_type'] = 'phase_2'
 			# classify triplet model data with evm and get classification metrics
 
-			pred = evm.predict(evms_triplet, full_phase_2_data, params)
-			classif_rep, cm = metrics.classif_report(full_phase_2_open_set_labels, pred)
-			youdens_index = metrics.youdens_index(full_phase_2_open_set_labels, pred)
-			closed_f1_score = metrics.closed_f1_score(full_phase_2_open_set_labels, pred)
+			pred = evm.predict(evms_triplet, full_test_features_ti3d, params)
+			classif_rep, cm = metrics.classif_report(full_open_test_labels, pred)
+			youdens_index = metrics.youdens_index(full_open_test_labels, pred)
+			closed_f1_score = metrics.closed_f1_score(full_open_test_labels, pred)
 	
 			print ('classification report:', classif_rep)
 			#print ('confusion matrix:\n', cm)
@@ -455,8 +438,11 @@ if __name__ == '__main__':
 			print ('closed f1 score:', closed_f1_score)
 	
 			utils.generate_report(youdens_index, closed_f1_score, classif_rep, cm, params)
-			utils.generate_clustering_report(full_phase_2_data,full_phase_2_open_set_labels,pred, params)
+			utils.generate_clustering_report(full_test_features_ti3d,full_open_test_labels,pred, params)
+			print(evaluation.clustering_metrics(full_test_features_ti3d,full_open_test_labels,pred))
 
+
+		input('jeje')
 
 
 
@@ -468,7 +454,6 @@ if __name__ == '__main__':
 
 		#phase 3								-----------------------
 		
-		print(rejected_set_features_ti3d)
 		#estimate number of clusters in the rejected set
 
 		top_k = 5
@@ -539,7 +524,7 @@ if __name__ == '__main__':
 		'''
 		#validate  ----- OK
 		extreme_vectors = evm.extreme_vectors(evms_triplet)
-		extreme_vectors_t = finetune_i3d.extract_features_triplet_net(extreme_vectors_features_i3d, extreme_vectors_labels, params, warm_start_model = ti3d_model)
+		extreme_vectors_t = finetune_i3d.extract_features_triplet_net(extreme_vectors_features_i3d, extreme_vectors_labels, params, warm_start_model = ti3d_model_weights)
 		extreme_vectors_t = np.array(extreme_vectors_t)
 		extreme_vectors = np.array(extreme_vectors)
 
@@ -562,7 +547,7 @@ if __name__ == '__main__':
 		ti3d_finetune_set = np.concatenate((extreme_vectors_features_i3d,rejected_set_features_i3d))
 		ti3d_finetune_labels = np.concatenate((extreme_vectors_labels,hierarchical_preds))
 
-		train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental = finetune_i3d.finetune_triplet_net(x_train = ti3d_finetune_set, int_y_train = ti3d_finetune_labels, x_test = test_features, params = params, warm_start_model = ti3d_model)
+		train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental, ti3d_model_incremental_weights = finetune_i3d.finetune_triplet_net(x_train = ti3d_finetune_set, int_y_train = ti3d_finetune_labels, x_test = test_features, params = params, warm_start_model = ti3d_model_weights)
 
 		#this is the extreme vectors ti3d incremental representation
 		extreme_vectors_features_ti3d_incremental = train_features_ti3d_incremental[0:extreme_vectors_features_i3d.shape[0]]
@@ -579,53 +564,79 @@ if __name__ == '__main__':
 
 		updated_evms = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params)
 				 
-		
+		class_history.append(new_classes)
+
 
 		#evaluate known test set and new test set (After incremental learning)
 
-		new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_incremental)
-		known_test_triplet_features = finetune_i3d.extract_features_triplet_net(known_data, known_data_labels, params, warm_start_model = ti3d_model_incremental)
+		#new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_incremental_weights)
+		#known_test_triplet_features = finetune_i3d.extract_features_triplet_net(known_data, known_data_labels, params, warm_start_model = ti3d_model_incremental_weights)
 		
-
-		
-		#merge known and new data
-
-		full_phase_4_data = np.concatenate((known_test_triplet_features,new_test_triplet_features))
-		full_phase_4_labels = np.concatenate((known_data_labels,int_new_test_labels))
-		full_phase_4_open_set_labels = [x if x in known_data_labels else 0 for x in full_phase_4_labels]
 
 
 		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
 			params['classification_threshold'] = current_th
-			params['model_type'] = 'triplet'
+			params['model_type'] = 'phase_4'
 			# classify triplet model data with evm and get classification metrics
 
 
-			preds = evm.predict(evms_triplet, full_phase_4_data, params)
+			preds = evm.predict(evms_triplet,full_test_features_ti3d, params)
 			print('Original evm')
-			print(evaluation.clustering_metrics(full_phase_4_data,full_phase_4_labels,preds))
+			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
+			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
 
-		input('jaja')
 
 		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
 			params['classification_threshold'] = current_th
-			params['model_type'] = 'triplet'
+			params['model_type'] = 'phase_4'
 			# classify triplet model data with evm and get classification metrics
 
 
-			preds = evm.predict(updated_evms, full_phase_4_data, params)
+			preds = evm.predict(updated_evms, full_test_features_ti3d, params)
 			print('incremented evm')
-			print(evaluation.clustering_metrics(full_phase_4_data,full_phase_4_labels,preds))
+			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
+			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
 
-		input('jaja')
+
+		#input('jejejeje')
 
 
+		full_test_features_ti3d = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+		#full_test_labels = flattened_test_i3d_labels.copy()
+		#full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
+
+
+		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
+			params['classification_threshold'] = current_th
+			params['model_type'] = 'phase_4'
+			# classify triplet model data with evm and get classification metrics
+
+
+			preds = evm.predict(evms_triplet,full_test_features_ti3d, params)
+			print('Original evm')
+			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
+			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
+
+
+		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
+			params['classification_threshold'] = current_th
+			params['model_type'] = 'phase_4'
+			# classify triplet model data with evm and get classification metrics
+
+
+			preds = evm.predict(updated_evms, full_test_features_ti3d, params)
+			print('incremented evm')
+			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
+			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
+
+
+		#input('jejejeje')
 
 
 		#increment known test set (may be changed later)
 
 
 		#end
-
+		print(np.unique(full_test_labels))
 		input('end of loop')
 

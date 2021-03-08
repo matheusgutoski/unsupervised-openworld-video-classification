@@ -154,7 +154,7 @@ def finetune(x_train, y_train, class_indexes, params):
         #validation_steps = 1
         history = model.fit_generator(generator = generator,epochs = params['max_epochs'], steps_per_epoch = steps_per_epoch , validation_data = val_generator, validation_steps = validation_steps,  use_multiprocessing = False, workers = 12, callbacks=[lr_scheduler, es]) #Setting multiprocessing to True causes problems with the current implementation.
 
-        return model, history
+        return model, history, model.get_weights()
 
 
 def initialize_i3d_kinetics(params):
@@ -183,7 +183,7 @@ def extract_features(old_model, x_train, y_train, x_test, y_test, class_indexes,
         NUM_CLASSES_TEST = np.unique(y_test).shape[0]
         if params['model'] == 'ucf101':
                 model = build_model_test(params, NUM_CLASSES_TRAIN)
-                model.set_weights(old_model.get_weights())
+                model.set_weights(old_model)
 
                 intermediate_model = Sequential()
                 intermediate_model.add(Model(inputs=model.input, outputs=model.get_layer('1x1_conv').input)) 
@@ -226,7 +226,7 @@ def extract_features_single(old_model, x_train, y_train, class_indexes, params, 
         NUM_CLASSES_TRAIN = np.unique(y_train).shape[0]
         if params['model'] == 'ucf101':
                 model = build_model_test(params, original_n_classes)
-                model.set_weights(old_model.get_weights())
+                model.set_weights(old_model)
 
                 intermediate_model = Sequential()
                 intermediate_model.add(Model(inputs=model.input, outputs=model.get_layer('1x1_conv').input)) 
@@ -495,7 +495,6 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
 
         if warm_start_model is not None:
                 model.set_weights(warm_start_model)
-       
 
         model.summary()
 
@@ -524,7 +523,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         X_test_trm = trained_model.predict(x_test)
 
         #K.clear_session() # this is very important
-        return X_train_trm, X_test_trm, hist_triplet, model.get_weights()
+        return X_train_trm, X_test_trm, hist_triplet, model, model.get_weights()
 
 
 
@@ -689,8 +688,10 @@ def extract_features_triplet_net(x_train, int_y_train, params, warm_start_model 
         model.compile(loss=triplet_loss_wrapper(params['margin']), optimizer=sgd_optim)
 
         if warm_start_model is not None:
-                #model.set_weights(warm_start_model.get_weights())                
+                #model.set_weights(warm_start_model.get_weights())  
                 model.set_weights(warm_start_model)
+              
+
 
        
         model.summary()

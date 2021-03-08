@@ -150,10 +150,18 @@ def generate_clustering_report(x,y,pred, params, **kwargs):
 	f.close()
 
 
+def save_pickle(preds, output_path, filename):
+	import pickle
+	pickle.dump(preds, open(output_path+filename+".pickle", "wb" ))
 
 
+def load_pickle(path):
+	import pickle
+	obj = pickle.load(open( path, "rb"))
+	return obj
 
-def save_i3d_model(model, params):
+
+def save_i3d_model(model, model_weights, params):
         if params['model'] != 'kinetics':
                 print ('saving i3d model...')
                 output_path = params['output_path']
@@ -162,11 +170,13 @@ def save_i3d_model(model, params):
                 output_path += exp_id
                 output_path += str(params['fold']) + '/'
                 makedirs(output_path)
-                model.save(output_path + 'i3d_model.h5')                
+                model.save(output_path + 'i3d_model.h5') 
+                save_pickle(model_weights, output_path,'i3d_model_weights')
+               
         else:
                 print ('no need to save kinetics model')
 
-def save_ti3d_model(model, params):
+def save_ti3d_model(model,model_weights, params):
         if params['model'] != 'kinetics':
                 print ('saving ti3d model...')
                 output_path = params['output_path']
@@ -175,12 +185,14 @@ def save_ti3d_model(model, params):
                 output_path += exp_id
                 output_path += str(params['fold']) + '/'
                 makedirs(output_path)
-                model.save_weights(output_path + 'ti3d_model.h5')                
+                model.save(output_path + 'ti3d_model.h5')   
+                save_pickle(model_weights, output_path,'ti3d_model_weights')
+             
         else:
                 print ('no need to save kinetics model')
 
 
-def load_i3d_model(params):
+def load_i3d_model(params,NUM_CLASSES):
         if params['model'] != 'kinetics':
                 print ('loading  i3d model...')
                 output_path = params['output_path']
@@ -188,8 +200,15 @@ def load_i3d_model(params):
 
                 output_path += exp_id
                 output_path += str(params['fold']) + '/'
-                from keras.models import load_model
-                return load_model(output_path + 'i3d_model.h5')                
+                #from keras.models import load_model
+                #return load_model(output_path + 'i3d_model.h5')                
+
+                import finetune_i3d
+                model = finetune_i3d.build_model(params,NUM_CLASSES)
+                #model.load_weights(output_path + 'i3d_model.h5')
+                model_weights = load_pickle(output_path+'i3d_model_weights.pickle')
+		
+                return model.set_weights(model_weights), model_weights
 
 
 
@@ -206,9 +225,11 @@ def load_ti3d_model(params):
         import finetune_i3d
         model = finetune_i3d.init_ti3d(params)
 
-        model.load_weights(output_path + 'ti3d_model.h5')
+        #model.load_weights(output_path + 'ti3d_model.h5')
+        model_weights = load_pickle(output_path+'ti3d_model_weights.pickle')
+		
+        return model.set_weights(model_weights), model_weights
 
-        return model.get_weights()
 
 def save_evm_models(evms,params):
  
