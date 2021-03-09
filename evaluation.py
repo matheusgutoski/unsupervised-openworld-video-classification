@@ -88,112 +88,16 @@ def report(x,y,pred, output_path, **kwargs):
 
 
 
+def full_evaluation():
+
+	return 0
+
+def single_evaluation():
+
+	return 0
 
 
 
 
 
 
-
-
-#discontinued functions
-'''
-def clustering_metrics(x,y,pred):
-	completeness_scores = []
-	homogeneity_scores = []
-	vmeasure_scores = []	
-	adjusted_rand_scores = []
-	adjusted_mutual_info_scores = []
-
-	#new
-	calinski_harabasz_scores = []
-	davies_bouldin_scores = []
-	fowlkes_mallows_scores = []
-	mutual_info_scores = []
-	normalized_mutual_info_scores = []
- 
-
-
-	for p in pred:
-		completeness_scores.append(me.completeness_score(y,p))
-		homogeneity_scores.append(me.homogeneity_score(y,p))
-		vmeasure_scores.append(me.v_measure_score(y,p))
-		adjusted_rand_scores.append(me.adjusted_rand_score(y,p))
-		adjusted_mutual_info_scores.append(me.adjusted_mutual_info_score(y,p))
-
-		calinski_harabasz_scores.append(me.calinski_harabasz_score(x,p))
-		davies_bouldin_scores.append(me.davies_bouldin_score(x,p))
-		fowlkes_mallows_scores.append(me.fowlkes_mallows_score(y,p))
-		mutual_info_scores.append(me.mutual_info_score(y,p))
-		normalized_mutual_info_scores.append(me.normalized_mutual_info_score(y,p))
-	
-
-
-	dict = {}
-	dict['completeness'] = completeness_scores
-	dict['homogeneity'] = homogeneity_scores
-	dict['vmeasure'] = vmeasure_scores
-	dict['adjusted_rand'] = adjusted_rand_scores
-	dict['adjusted_mutual_info'] = adjusted_mutual_info_scores
-
-	dict['calinski_harabasz'] = calinski_harabasz_scores 
-	dict['davies_bouldin'] = davies_bouldin_scores
-	dict['fowlkes_mallows'] = fowlkes_mallows_scores
-	dict['mutual_info'] = mutual_info_scores
-	dict['normalized_mutual_info'] = normalized_mutual_info_scores
- 
- 
-
-
-	return dict
-
-def report(x,y,pred, output_path):
-	utils.make_dirs(output_path)
-	utils.make_dirs(output_path+'metrics/')
-	#utils.make_dirs(output_path+'plots/silhouette/euclidean/')
-	#utils.make_dirs(output_path+'plots/silhouette/cosine/')
-
-	#needed for the report
-	k = np.unique(pred).shape[0]
-
-	
-	#get metrics
-	results = clustering_metrics(x,y,pred)
-	
-	#get and plot silhouette scores
-	sil_scores_euc = silhouette_scores(x,pred,metric='euclidean', output_path = output_path+'plots/silhouette/euclidean/')	
-	sil_scores_cos = silhouette_scores(x,pred,metric='cosine', output_path = output_path+'plots/silhouette/cosine/')	
-
-	results['silhouette_scores_euc'] = sil_scores_euc
-	results['silhouette_scores_cos'] = sil_scores_cos	
-	results['k'] = [min_k,max_k]
-	results['n_clusters_gt'] = np.unique(y).shape[0]
-
-	utils.save_report(results, output_path+'metrics/')
- 
-	#save predictions
-	utils.save_predictions(pred, output_path)
-
-
-def report(x,y,pred):
-	silhouette_euc = me.silhouette_score(x,pred,metric='euclidean')
-	silhouette_cos = me.silhouette_score(x,pred,metric='cosine')
-
-	homogeneity = me.homogeneity_score(y,pred)
-	completeness = me.completeness_score(y,pred)
-	vmeasure = me.v_measure_score(y,pred)
-
-	adjusted_rand_score = me.adjusted_rand_score(y,pred)
-	adjusted_mutual_info_score = me.adjusted_mutual_info_score(y,pred)
-
-
-	print ('silhouette_euc',silhouette_euc)
-	print ('silhouette_cos',silhouette_cos)
-	print ('homogeneity',homogeneity )
-	print ('completeness',completeness) 
-	print ('vmeasure',vmeasure )
-	print ('adjusted rand score',adjusted_rand_score)
-	print ('adjusted mutual info score',adjusted_mutual_info_score)
-
-	return [silhouette_euc,silhouette_cos,homogeneity,completeness,vmeasure,adjusted_rand_score,adjusted_mutual_info_score]
-'''

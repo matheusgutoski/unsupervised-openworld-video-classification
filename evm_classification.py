@@ -2,21 +2,40 @@ import EVM
 import numpy as np
 import os
 import scipy
-def fit(x_train, y_train, params):
-        evms = {}
-        for cl in np.unique(y_train): # train one evm for each positive class
-                print ('training evm for class', cl)
-                #separate the positive class from the rest
-                positives = [x for i,x in enumerate(x_train) if y_train[i] == cl]
-                negatives = [x for i,x in enumerate(x_train) if y_train[i] != cl]
 
-                evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.cosine)
-                #evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.euclidean)
-                evm.train(positives = positives, negatives = negatives, parallel = 8)
 
-                evms[cl] = evm
+def fit(x_train, y_train, params, i3d_features = None):
+	evms = {}
+	if i3d_features is not None:
+		original_extreme_vectors, original_extreme_vectors_labels = [],[]
 
-        return evms
+	for cl in np.unique(y_train): # train one evm for each positive class
+		print ('training evm for class', cl)
+		#separate the positive class from the rest
+		positives = [x for i,x in enumerate(x_train) if y_train[i] == cl]
+		negatives = [x for i,x in enumerate(x_train) if y_train[i] != cl]
+
+		if i3d_features is not None:
+			positives_i3d =  [x for i,x in enumerate(i3d_features) if y_train[i] == cl]
+
+		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.cosine)
+		#evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.euclidean)
+		evm.train(positives = positives, negatives = negatives, parallel = 8)
+
+		evms[cl] = evm
+
+		if i3d_features is not None:
+			print(evm._extreme_vectors)
+			for ev in evm._extreme_vectors:
+				original_extreme_vectors.append(positives_i3d[ev])
+				original_extreme_vectors_labels.append(cl)
+				
+
+	if i3d_features is not None:
+		return evms, original_extreme_vectors, original_extreme_vectors_labels
+	else:
+		return evms
+
 
 
 def predict(evms, x_test, params):
@@ -81,7 +100,7 @@ def extreme_vectors_idx(evms):
 		labels.append(key)
 	for evm in evms:
 		extreme_vector_idx.append(evms[evm]._extreme_vectors)
-
+		print(evms[evm]._extreme_vectors)
 	print('extreme vector indexes:',extreme_vector_idx)
 	print('extreme vector labels:', labels)
 	return extreme_vector_idx, labels
@@ -96,10 +115,12 @@ def extreme_vectors(evms):
 	return extreme_vectors
 
 
-def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, new_train_labels, params):
+def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, new_train_labels, params, i3d_features = None):
 	print('Training incremental evms...')
 	evms = {}
-	
+	if i3d_features is not None:
+		original_extreme_vectors, original_extreme_vectors_labels = [],[]
+
 	for cl in np.unique(extreme_vectors_labels): # train one evm for each extreme vector class
 		print ('training evm for extreme vector class', cl)
 		#separate the positive class from the rest
@@ -117,13 +138,22 @@ def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, n
 		positives = [x for i,x in enumerate(new_train_features) if new_train_labels[i] == cl]
 		negatives = [x for i,x in enumerate(new_train_features) if new_train_labels[i] != cl]
 
+		if i3d_features is not None:
+			positives_i3d =  [x for i,x in enumerate(i3d_features) if new_train_labels[i] == cl]
+
 		negatives = negatives + extreme_vectors.tolist()
 		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.cosine)
 		evm.train(positives = positives, negatives = negatives, parallel = 8)
 		evms[cl] = evm
 
+		if i3d_features is not None:
+			print(evm._extreme_vectors)
+			for ev in evm._extreme_vectors:
+				original_extreme_vectors.append(positives_i3d[ev])
+				original_extreme_vectors_labels.append(cl)
+				
 
-
-
-
-	return evms
+	if i3d_features is not None:
+		return evms, original_extreme_vectors, original_extreme_vectors_labels
+	else:
+		return evms

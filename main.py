@@ -176,8 +176,7 @@ if __name__ == '__main__':
 	class_history = []
 	class_history.append(initial_classes)
 	total_classes = initial_n_classes
-
-
+	print(np.unique(int_initial_train_labels),np.unique(int_initial_test_labels))
 
 	#train i3d
 	all_categories_train_fold = gen.get_all_categories(initial_train) 
@@ -233,14 +232,9 @@ if __name__ == '__main__':
 
 
 	
-	try:
-		evms_triplet = utils.load_evm_model(params)
-		print('successfully loaded evm model')
-	except:
 
-		evms_triplet = evm.fit(train_features_ti3d, int_initial_train_labels, params)
-		utils.save_evm_models(evms_triplet, params)
-
+	evms_triplet, initial_extreme_vectors_i3d, initial_extreme_vectors_labels = evm.fit(train_features_ti3d, int_initial_train_labels, params, train_features)
+	#utils.save_evm_models(evms_triplet, params)
 
 
 	#evaluate
@@ -301,7 +295,6 @@ if __name__ == '__main__':
 		new_classes = class_shuffle[total_classes:total_classes + new_n_classes]
 		total_classes += new_n_classes
 		print('new selected classes:',new_classes)
-		
 		#new data
 
 		new_train = []
@@ -442,7 +435,6 @@ if __name__ == '__main__':
 			print(evaluation.clustering_metrics(full_test_features_ti3d,full_open_test_labels,pred))
 
 
-		input('jeje')
 
 
 
@@ -474,13 +466,11 @@ if __name__ == '__main__':
 			hierarchical_preds = rejected_set_labels
 		else:
 			hierarchical_preds = hierarchical.hierarchical(rejected_set_features_ti3d, n_clusters = estimated_k, affinity = 'euclidean', linkage = 'ward', distance_threshold= None, normalize_data = True)
-		print(hierarchical_preds[0:10])
 		
 
 
 		#assign labels
 		hierarchical_preds = ['new_class_'+str(x)+'_iter_'+str(params['iteration']) for x in hierarchical_preds ]
-		print(hierarchical_preds)
 
 		#evaluate clustering performance
 		params['model_type'] = 'phase_3'
@@ -495,33 +485,20 @@ if __name__ == '__main__':
 
 
 
-
 		#phase 4								------------------------
 	
 				
 		#get extreme vectors in i3d feature space
-		extreme_vectors_features_i3d = []
-		extreme_vectors_labels = []
-		extreme_vectors_idx, extreme_vectors_keys = evm.extreme_vectors_idx(evms_triplet)
-
-		for count,cl in enumerate(np.unique(int_initial_train_labels)): 
-			#separate the positive class from the rest
-			positives = [x for i,x in enumerate(train_features) if int_initial_train_labels[i] == cl]
-			print(positives, len(positives))
-			for evi in extreme_vectors_idx[count]:
-				print(evi)
-				extreme_vectors_features_i3d.append(positives[evi])
-				extreme_vectors_labels.append(cl)
 
 
-		extreme_vectors_features_i3d = np.array(extreme_vectors_features_i3d)
-		#print(extreme_vectors_features_i3d, extreme_vectors_features_i3d.shape)
-		#print(extreme_vectors_labels)
+		#initial_extreme_vectors_i3d, initial_extreme_vectors_labels
 
-		
+		if params['iteration'] == 1:
+			extreme_vectors_features_i3d, extreme_vectors_labels = np.array(initial_extreme_vectors_i3d), np.array(initial_extreme_vectors_labels)
 
 
 		'''
+		
 		#validate  ----- OK
 		extreme_vectors = evm.extreme_vectors(evms_triplet)
 		extreme_vectors_t = finetune_i3d.extract_features_triplet_net(extreme_vectors_features_i3d, extreme_vectors_labels, params, warm_start_model = ti3d_model_weights)
@@ -534,7 +511,7 @@ if __name__ == '__main__':
 			print(a[0:10],b[0:10])
 			print(extreme_vectors.shape,extreme_vectors_t.shape)
 		'''
-
+		
 		
 
 
@@ -546,7 +523,6 @@ if __name__ == '__main__':
 		#training set is now extreme vectors and rejected set (i3d features)
 		ti3d_finetune_set = np.concatenate((extreme_vectors_features_i3d,rejected_set_features_i3d))
 		ti3d_finetune_labels = np.concatenate((extreme_vectors_labels,hierarchical_preds))
-
 		train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental, ti3d_model_incremental_weights = finetune_i3d.finetune_triplet_net(x_train = ti3d_finetune_set, int_y_train = ti3d_finetune_labels, x_test = test_features, params = params, warm_start_model = ti3d_model_weights)
 
 		#this is the extreme vectors ti3d incremental representation
@@ -562,8 +538,14 @@ if __name__ == '__main__':
 		#1)atualizar extreme vectors para os novos e recalcular psis (Treinamento normal usando apenas os extreme vectors como representantes das classes e sem model reduction)
 		#2)treinar as classes novas (com model reduction)
 
-		updated_evms = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params)
+		updated_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, new_train_features)
 				 
+		new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
+		print(new_extreme_vectors_i3d.shape, new_extreme_vectors_labels)
+
+
+		#increment pool of extreme vectors
+		extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
 		class_history.append(new_classes)
 
 
@@ -598,7 +580,6 @@ if __name__ == '__main__':
 			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
 
 
-		#input('jejejeje')
 
 
 		full_test_features_ti3d = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
@@ -630,7 +611,6 @@ if __name__ == '__main__':
 			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
 
 
-		#input('jejejeje')
 
 
 		#increment known test set (may be changed later)
@@ -638,5 +618,8 @@ if __name__ == '__main__':
 
 		#end
 		print(np.unique(full_test_labels))
+		print(class_history)
+		print(len(full_test_labels), full_test_features_ti3d.shape)
+
 		input('end of loop')
 
