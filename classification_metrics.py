@@ -49,7 +49,8 @@ def youdens_index(true, predicted, unknown_label = 0):
 
         try:
                 J = Sensitivity(true, predicted) + Specificity(true, predicted) - 1
-        except:
+        except Exception as e:
+                print(e)
                 J = 'Open Youdens index seems to be undefined. Is the number of classes in test time greater than the number of classes in training time?'
         return J
 

@@ -92,9 +92,77 @@ def full_evaluation():
 
 	return 0
 
-def single_evaluation():
+def single_evaluation_clustering(x,y,pred,params,**kwargs):
+	
+	import evaluation
+	from utils import makedirs, gen_exp_id
 
-	return 0
+	output_path = params['output_path']
+	exp_id = gen_exp_id(params)
+
+	output_path += exp_id
+	output_path += str(params['fold']) + '/'
+	output_path += str(params['model_type']) + '/'
+	output_path += str(params['iteration']) + '/'
+	output_path += str(params['classification_threshold']) + '/'
+	makedirs(output_path)
+
+	results = evaluation.clustering_metrics(x,y,pred)
+
+	f = open(output_path+'clustering_report.txt', 'w')
+
+
+	f.write('Ground truth number of clusters = ' + str(results['n_clusters_gt'])+'\n')
+	f.write('Number of clusters found = '+str(results['k'])+'\n')
+
+	#check kwargs for additional info
+	if kwargs.get('additional_info') is not None:
+		dict = kwargs.get('additional_info')
+		for key,value in dict.items():
+			print(key,value)
+			f.write(str(key)+': ' +str(value)+'\n')
+
+	f.write('\nHomogeneity: '+str(results['homogeneity'])+'\n')
+	f.write('Completeness: '+str(results['completeness'])+'\n')	
+	f.write('V-measure: '+str(results['vmeasure'])+'\n')	
+	f.write('Adjusted Rand score: '+str(results['adjusted_rand'])+'\n')
+	f.write('Adjusted mutual info: '+str(results['adjusted_mutual_info'])+'\n')	
+	f.write('Calinski Harabasz score: '+str(results['calinski_harabasz'])+'\n')
+	f.write('Davies Bouldin score: '+str(results['davies_bouldin'])+'\n')
+	f.write('Fowlkes Mallows score: '+str(results['fowlkes_mallows'])+'\n')
+	f.write('Mutual Info score: '+str(results['mutual_info'])+'\n')
+	f.write('Normalized Mutual Info score: '+str(results['normalized_mutual_info'])+'\n')
+	f.write('Silhouette score (Euclidean distance): '+str(results['silhouette_score_euc'])+'\n')
+	f.write('Silhouette score (Cosine distance): '+str(results['silhouette_score_cos'])+'\n')
+ 
+
+	f.write('\n\n')
+
+	f.close()
+	
+	
+
+
+
+def single_evaluation_openset(y,pred,params):
+	import classification_metrics as metrics
+	import utils
+	import re
+
+	y = [int(re.search(r'\d+', str(x)).group()) for x in y]
+	pred = [int(re.search(r'\d+', str(x)).group()) for x in pred]
+
+	
+	classif_rep, cm = metrics.classif_report(y, pred)
+	youdens_index = metrics.youdens_index(y, pred)
+	closed_f1_score = metrics.closed_f1_score(y, pred)
+	
+	print ('classification report:', classif_rep)
+	print ('confusion matrix:\n', cm)
+	print ('youdens index:',youdens_index)
+	print ('closed f1 score:', closed_f1_score)
+	
+	utils.generate_report(youdens_index, closed_f1_score, classif_rep, cm, params)
 
 
 

@@ -33,7 +33,7 @@ if __name__ == '__main__':
 	parser.add_argument('--triplet_batch_size', help='batch size of triplet net', type=int, default = 128)
 	parser.add_argument('--tail_size', help='weibull tail size for evm', type=int, default = 10)
 	parser.add_argument('--cover_threshold', help='evm cover threshold', type=float, default = 0.1)
-	parser.add_argument('--classification_threshold', help='probability threshold for accepting points in evm', type=float, default = 0.005)
+	parser.add_argument('--classification_threshold', help='probability threshold for accepting points in evm', type=float, default = 0.001)
 	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'prototype_results/')
 	parser.add_argument('--seed', help='Random seed. 123450 sets seed to random', type=int, default = 5)
 	parser.add_argument('--gpu', help='gpu id', type=int)
@@ -46,8 +46,8 @@ if __name__ == '__main__':
 
 	#set all params
 	params = {}
-	params['min_classes'] = 2
-	params['max_classes'] = 3
+	params['min_classes'] = 5
+	params['max_classes'] = 10
 	params['seed'] = args.seed
 	params['init_seed'] = params['seed']
 	params['model_type'] = 'cnn'
@@ -86,9 +86,9 @@ if __name__ == '__main__':
 	#parameters for the evm
 	params['tail_size'] = args.tail_size
 	params['cover_threshold'] = args.cover_threshold
-	#params['classification_threshold'] = args.classification_threshold
+	params['classification_threshold'] = args.classification_threshold
 	#multi_classification_threshold = [0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99,0.999, 0.9999]
-	multi_classification_threshold = [0.001]
+	#multi_classification_threshold = [0.001]
 
 	params['iteration'] = 0 
 
@@ -227,6 +227,7 @@ if __name__ == '__main__':
 
 		print(train_features_ti3d.shape)
 	
+	fixed_ti3d_model_weights = ti3d_model_weights.copy()
 	
 	#train evm
 
@@ -244,27 +245,15 @@ if __name__ == '__main__':
 	params['openness'] = 0
 
 	
-	for current_th in multi_classification_threshold: 
-		params['model_type'] = 'phase_1'
     
-		params['classification_threshold'] = current_th
-		params['model_type'] = 'phase_1'
-		# classify triplet model data with evm and get classification metrics
+	params['model_type'] = 'phase_1'
+	# classify triplet model data with evm and get classification metrics
 
-		pred = evm.predict(evms_triplet, test_features_ti3d, params)
-		classif_rep, cm = metrics.classif_report(open_y_test, pred)
-		youdens_index = metrics.youdens_index(open_y_test, pred)
-		closed_f1_score = metrics.closed_f1_score(open_y_test, pred)
+	pred = evm.predict(evms_triplet, test_features_ti3d, params)
+	evaluation.single_evaluation_openset(open_y_test,pred,params)
+	evaluation.single_evaluation_clustering(test_features_ti3d,open_y_test,pred, params)
 
-		print ('classification report:', classif_rep)
-		#print ('confusion matrix:\n', cm)
-		print ('youdens index:',youdens_index)
-		print ('closed f1 score:', closed_f1_score)
-
-		utils.generate_report(youdens_index, closed_f1_score, classif_rep, cm, params)
-		utils.generate_clustering_report(test_features_ti3d,open_y_test,pred, params)
-
-
+	
 	#end phase 1
 
 
@@ -386,14 +375,12 @@ if __name__ == '__main__':
 			rejected_set_features_i3d = np.array(new_train_features)
 			rejected_set_labels = np.array(int_new_train_labels)
 		else:
-			for current_th in multi_classification_threshold:
-				params['classification_threshold'] = current_th
-				pred = evm.predict(evms_triplet, new_train_triplet_features, params)
-				rejected_set_idx = np.where(np.array(pred)==0)[0]
-				rejected_set_features_ti3d = np.array(new_train_triplet_features)[rejected_set_idx].copy() 
-				rejected_set_features_i3d = np.array(new_train_features)[rejected_set_idx].copy() 
-				rejected_set_labels = np.array(int_new_train_labels)[rejected_set_idx].copy()
-				print(pred)
+			pred = evm.predict(evms_triplet, new_train_triplet_features, params)
+			rejected_set_idx = np.where(np.array(pred)==0)[0]
+			rejected_set_features_ti3d = np.array(new_train_triplet_features)[rejected_set_idx].copy() 
+			rejected_set_features_i3d = np.array(new_train_features)[rejected_set_idx].copy() 
+			rejected_set_labels = np.array(int_new_train_labels)[rejected_set_idx].copy()
+			print(pred)
 		
 
 		
@@ -406,6 +393,8 @@ if __name__ == '__main__':
 	
 
 		flattened_test_i3d_features, flattened_test_i3d_labels = np.concatenate(test_i3d_features), np.concatenate(test_i3d_labels)
+		flattened_train_i3d_features, flattened_train_i3d_labels = np.concatenate(train_i3d_features), np.concatenate(train_i3d_labels)
+
 		#update all sets with the latest ti3d weights
 
 
@@ -414,27 +403,24 @@ if __name__ == '__main__':
 		full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
 
 
+
+
+
+
 		#evaluate on full test data
-		for current_th in multi_classification_threshold:      
-			params['classification_threshold'] = current_th
-			params['model_type'] = 'phase_2'
-			# classify triplet model data with evm and get classification metrics
 
-			pred = evm.predict(evms_triplet, full_test_features_ti3d, params)
-			classif_rep, cm = metrics.classif_report(full_open_test_labels, pred)
-			youdens_index = metrics.youdens_index(full_open_test_labels, pred)
-			closed_f1_score = metrics.closed_f1_score(full_open_test_labels, pred)
+		params['model_type'] = 'phase_2'
+
+		# classify triplet model data with evm and get classification metrics
+
+		print(np.unique(full_open_test_labels),np.unique(full_test_labels))
+		pred = evm.predict(evms_triplet, full_test_features_ti3d, params)
+		evaluation.single_evaluation_openset(full_open_test_labels,pred,params)
+		evaluation.single_evaluation_clustering(full_test_features_ti3d,full_open_test_labels,pred, params)
+
+		#input('jeje')
+
 	
-			print ('classification report:', classif_rep)
-			#print ('confusion matrix:\n', cm)
-			print ('youdens index:',youdens_index)
-			print ('closed f1 score:', closed_f1_score)
-	
-			utils.generate_report(youdens_index, closed_f1_score, classif_rep, cm, params)
-			utils.generate_clustering_report(full_test_features_ti3d,full_open_test_labels,pred, params)
-			print(evaluation.clustering_metrics(full_test_features_ti3d,full_open_test_labels,pred))
-
-
 
 
 
@@ -474,8 +460,8 @@ if __name__ == '__main__':
 
 		#evaluate clustering performance
 		params['model_type'] = 'phase_3'
-		obs_m = utils.build_observation_matrix(hierarchical_preds)
-		utils.generate_clustering_report(rejected_set_features_ti3d,rejected_set_labels,hierarchical_preds, params)
+		#utils.generate_clustering_report(rejected_set_features_ti3d,rejected_set_labels,hierarchical_preds, params)
+		evaluation.single_evaluation_clustering(rejected_set_features_ti3d,rejected_set_labels,hierarchical_preds, params)
 
 		#end phase 3
 
@@ -549,77 +535,85 @@ if __name__ == '__main__':
 		class_history.append(new_classes)
 
 
+
+
+		full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
+
+
 		#evaluate known test set and new test set (After incremental learning)
 
-		#new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_incremental_weights)
-		#known_test_triplet_features = finetune_i3d.extract_features_triplet_net(known_data, known_data_labels, params, warm_start_model = ti3d_model_incremental_weights)
+		'''
+		params['model_type'] = 'phase_4_fixed_ti3d_fixed_evm'
+		preds = evm.predict(evms_triplet,full_test_features_ti3d_fixed, params)
+		print('Original evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds,params)
+
+
+		params['model_type'] = 'phase_4_fixed_ti3d_updated_evm'
+		preds = evm.predict(updated_evms, full_test_features_ti3d_fixed, params)
+		print('incremented evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds, params)
+		'''
+
+
+
+
+		params['model_type'] = 'phase_4_gold_ti3d_gold_evm'
+		train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
+		full_test_features_ti3d_gold = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
+		gold_evms = evm.fit(train_features_ti3d_gold, flattened_train_i3d_labels, params)
+		preds = evm.predict(gold_evms,full_test_features_ti3d_gold, params)
+		print('gold ti3d gold evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d_gold,full_test_labels,preds, params)
+
+
+
+		params['model_type'] = 'phase_4_fixed_ti3d_gold_evm'
+		train_features_ti3d_fixed= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
+		gold_evms = evm.fit(train_features_ti3d_fixed, flattened_train_i3d_labels, params)
+		preds = evm.predict(gold_evms,full_test_features_ti3d_fixed, params)
+		print('fixed ti3d gold evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds, params)
+
+
+
+		params['model_type'] = 'phase_4_incremental_ti3d_gold_evm'
+		train_features_ti3d_incremental= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+		full_test_features_ti3d_incremental = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+		gold_evms = evm.fit(train_features_ti3d_incremental, flattened_train_i3d_labels, params)
+		preds = evm.predict(gold_evms,full_test_features_ti3d_incremental, params)
+		print('incremental ti3d gold evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d_incremental,full_test_labels,preds, params)
+
+
+
+
+		'''
+		params['model_type'] = 'phase_4_updated_ti3d_fixed_evm'
+		preds = evm.predict(evms_triplet,full_test_features_ti3d, params)
+		print('Original evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d,full_test_labels,preds, params)
+
+
+
+
+
+		params['model_type'] = 'phase_4_updated_ti3d_updated_evm'
+		preds = evm.predict(updated_evms, full_test_features_ti3d, params)
+		print('incremented evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d,full_test_labels,preds, params)
+
+		'''
+
+
+
 		
 
 
-		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
-			params['classification_threshold'] = current_th
-			params['model_type'] = 'phase_4'
-			# classify triplet model data with evm and get classification metrics
-
-
-			preds = evm.predict(evms_triplet,full_test_features_ti3d, params)
-			print('Original evm')
-			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
-			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
-
-
-		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
-			params['classification_threshold'] = current_th
-			params['model_type'] = 'phase_4'
-			# classify triplet model data with evm and get classification metrics
-
-
-			preds = evm.predict(updated_evms, full_test_features_ti3d, params)
-			print('incremented evm')
-			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
-			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
 
 
 
-
-		full_test_features_ti3d = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
-		#full_test_labels = flattened_test_i3d_labels.copy()
-		#full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
-
-
-		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
-			params['classification_threshold'] = current_th
-			params['model_type'] = 'phase_4'
-			# classify triplet model data with evm and get classification metrics
-
-
-			preds = evm.predict(evms_triplet,full_test_features_ti3d, params)
-			print('Original evm')
-			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
-			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
-
-
-		for current_th in multi_classification_threshold:      # aqui tem que incluir as rotinas multiparams
-			params['classification_threshold'] = current_th
-			params['model_type'] = 'phase_4'
-			# classify triplet model data with evm and get classification metrics
-
-
-			preds = evm.predict(updated_evms, full_test_features_ti3d, params)
-			print('incremented evm')
-			print(evaluation.clustering_metrics(full_test_features_ti3d,full_test_labels,preds))
-			utils.generate_clustering_report(full_test_features_ti3d,full_test_labels,preds, params)
-
-
-
-
-		#increment known test set (may be changed later)
-
-
-		#end
-		print(np.unique(full_test_labels))
-		print(class_history)
-		print(len(full_test_labels), full_test_features_ti3d.shape)
-
+		ti3d_model_weights = ti3d_model_incremental_weights
+		evms_triplet = updated_evms
 		input('end of loop')
 
