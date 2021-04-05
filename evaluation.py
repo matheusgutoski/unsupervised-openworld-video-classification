@@ -88,11 +88,83 @@ def report(x,y,pred, output_path, **kwargs):
 
 
 
-def full_evaluation():
+def full_evaluation(results, params):
+	#results is a list of dictionaries, where each dictionary represents one iteration of results
+	
+	#dict['x'] are features
+	#dict['y'] are the gt labels
+	#dict['preds'] are the predictions
+	#dict['tasks'] are the classes included in each task. Each position of the array is an array of classes
 
-	return 0
+	per_iteration_metrics = []
+	for r in results:
+		per_task_metrics = []
+		x = r['x']
+		y = r['y']
+		preds = r['preds']
+		tasks = r['tasks']
 
-def single_evaluation_clustering(x,y,pred,params,**kwargs):
+		for t in tasks:
+			relevant_x = [x[i] for i in range(len(y)) if y[i] in t]
+			relevant_y = [y[i] for i in range(len(y)) if y[i] in t]
+			relevant_preds = [preds[i] for i in range(len(y)) if y[i] in t]
+
+			cl_metrics = clustering_metrics(relevant_x,relevant_y,relevant_preds)
+			#print(relevant_y)
+			#print(relevant_preds)
+			#for k,v in cl_metrics.items():
+			#	print(k,v)
+			
+			per_task_metrics.append(cl_metrics)
+			#input('end of task')
+
+		#input('end of iteration')
+		per_iteration_metrics.append(per_task_metrics)
+
+
+	#compute forgetting for each task, starting at task 0...n
+	forgetting_per_task = []
+
+	total_tasks = len(results[-1]['tasks'])
+	#print('total tasks:',total_tasks)	
+
+
+	for i in range(total_tasks):
+		metrics_current_task = []
+
+		#find maximum value of each metric in task i
+		#print('current task:',i)
+		for j,p in enumerate(per_iteration_metrics):
+			if i <= j:
+				#print("current j",j)
+				#print(p[i])
+				metrics_current_task.append(p[i])
+				#input('')
+		#print(metrics_current_task)
+
+		keys = metrics_current_task[0].keys()
+		max_metrics_task = {}
+		forgetting_task = {}
+		#print(max_metrics_task)
+		for k in keys:
+			#print(k)
+			current_metrics = [r[k] for r in metrics_current_task]
+			#print(current_metrics)
+			max_metrics_task[k] = np.amax(current_metrics)
+			forgetting_task[k] =  np.amax(current_metrics) - current_metrics[-1]
+	
+			#print(max_metrics_task[k])
+			#print(forgetting_task[k])	
+
+			#input('m')
+		forgetting_per_task.append(forgetting_task)
+
+
+	
+	return forgetting_per_task, per_iteration_metrics
+
+
+def single_evaluation_clustering(x,y,pred,params, return_dict=False,**kwargs):
 	
 	import evaluation
 	from utils import makedirs, gen_exp_id
@@ -108,6 +180,9 @@ def single_evaluation_clustering(x,y,pred,params,**kwargs):
 	makedirs(output_path)
 
 	results = evaluation.clustering_metrics(x,y,pred)
+
+	if return_dict:
+		return results
 
 	f = open(output_path+'clustering_report.txt', 'w')
 
@@ -163,6 +238,9 @@ def single_evaluation_openset(y,pred,params):
 	print ('closed f1 score:', closed_f1_score)
 	
 	utils.generate_report(youdens_index, closed_f1_score, classif_rep, cm, params)
+
+
+
 
 
 

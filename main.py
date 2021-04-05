@@ -588,6 +588,17 @@ if __name__ == '__main__':
 
 
 
+		'''	to do
+		params['model_type'] = 'phase_4_gold_ti3d_updated_evm'
+
+		updated_evms, new_extreme_vectors_i3d_, new_extreme_vectors_labels_ = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, new_train_features)
+
+		preds = evm.predict(updated_evms, full_test_features_ti3d, params)
+		print('incremental ti3d gold evm')
+		evaluation.single_evaluation_clustering(full_test_features_ti3d_incremental,full_test_labels,preds, params)
+		'''
+	
+
 		'''
 		params['model_type'] = 'phase_4_updated_ti3d_fixed_evm'
 		preds = evm.predict(evms_triplet,full_test_features_ti3d, params)
@@ -615,5 +626,5 @@ if __name__ == '__main__':
 
 		ti3d_model_weights = ti3d_model_incremental_weights
 		evms_triplet = updated_evms
-		input('end of loop')
+		#input('end of loop')
 

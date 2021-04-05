@@ -5,7 +5,7 @@ import keras
 import numpy as np
 from data_generator_i3d import DataGenerator, generate_train_val_splits
 from i3d_inception import Inception_Inflated3d
-from keras.utils import multi_gpu_model
+#from keras.utils import multi_gpu_model
 from keras.models import Sequential
 from keras.layers import Dense, Reshape, Flatten, Lambda, Activation, Conv3D, Dropout, Input, concatenate
 import keras.backend as K
@@ -141,7 +141,7 @@ def finetune(x_train, y_train, class_indexes, params):
         sgd = keras.optimizers.SGD(lr=0.01, decay=1e-5, momentum=0.9, nesterov=True)
         model = build_model(params, NUM_CLASSES = NUM_CLASSES)        
 
-        es = EarlyStopping(monitor='val_acc', mode='max', verbose=1, baseline = 0.95, patience=0)
+        es = EarlyStopping(monitor='val_accuracy', mode='max', verbose=1, baseline = 0.95, patience=0)
         lr_scheduler = LearningRateScheduler(schedule)
         #parallel_model = multi_gpu_model(model, gpus=2)
         #parallel_model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
