@@ -112,24 +112,15 @@ if __name__ == '__main__':
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+	all_results = []
 
 
 
 
 	#PHASE 1									------------------------
+
+
+	
 
 
 	#perform train/test split
@@ -171,10 +162,14 @@ if __name__ == '__main__':
 	int_initial_train_labels = utils.convert_labels_to_int(initial_train_labels, dict_map)
 	int_initial_test_labels = utils.convert_labels_to_int(initial_test_labels, dict_map)
 
+	int_initial_classes = utils.convert_labels_to_int(initial_classes, dict_map)
+
 	open_y_test = [x if x in int_initial_train_labels else 0 for x in int_initial_test_labels]
 
 	class_history = []
+	int_class_history = []
 	class_history.append(initial_classes)
+	int_class_history.append(int_initial_classes)
 	total_classes = initial_n_classes
 	print(np.unique(int_initial_train_labels),np.unique(int_initial_test_labels))
 
@@ -253,6 +248,12 @@ if __name__ == '__main__':
 	evaluation.single_evaluation_openset(open_y_test,pred,params)
 	evaluation.single_evaluation_clustering(test_features_ti3d,open_y_test,pred, params)
 
+	dict = {}
+	dict['x'] = test_features_ti3d 
+	dict['y'] = open_y_test
+	dict['preds'] = pred
+	dict['tasks'] = [int_initial_classes]
+	all_results.append(dict)
 	
 	#end phase 1
 
@@ -418,6 +419,10 @@ if __name__ == '__main__':
 		evaluation.single_evaluation_openset(full_open_test_labels,pred,params)
 		evaluation.single_evaluation_clustering(full_test_features_ti3d,full_open_test_labels,pred, params)
 
+
+		class_history.append(new_classes)
+		int_class_history.append(utils.convert_labels_to_int(new_classes, dict_map))
+
 		#input('jeje')
 
 	
@@ -532,7 +537,7 @@ if __name__ == '__main__':
 
 		#increment pool of extreme vectors
 		extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
-		class_history.append(new_classes)
+		
 
 
 
@@ -557,7 +562,7 @@ if __name__ == '__main__':
 
 
 
-
+		'''
 		params['model_type'] = 'phase_4_gold_ti3d_gold_evm'
 		train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
 		full_test_features_ti3d_gold = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
@@ -574,7 +579,7 @@ if __name__ == '__main__':
 		preds = evm.predict(gold_evms,full_test_features_ti3d_fixed, params)
 		print('fixed ti3d gold evm')
 		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds, params)
-
+		'''
 
 
 		params['model_type'] = 'phase_4_incremental_ti3d_gold_evm'
@@ -586,6 +591,19 @@ if __name__ == '__main__':
 		evaluation.single_evaluation_clustering(full_test_features_ti3d_incremental,full_test_labels,preds, params)
 
 
+		dict = {}
+		dict['x'] = full_test_features_ti3d_incremental
+		dict['y'] = full_test_labels
+		dict['preds'] = preds
+		dict['tasks'] = int_class_history
+		all_results.append(dict)
+
+
+		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
+
+		print(forgetting)
+
+		input('keje')
 
 
 		'''	to do

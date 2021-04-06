@@ -96,6 +96,10 @@ def full_evaluation(results, params):
 	#dict['preds'] are the predictions
 	#dict['tasks'] are the classes included in each task. Each position of the array is an array of classes
 
+	#retorna 
+	#	  forgetting_per_task: um array onde cada posicao eh um dicionario que contem o forgetting de uma das tasks. Leva em consideracao todas as metricas.
+	#	  per_iteration_metrics: metricas por task para cada iteracao
+
 	per_iteration_metrics = []
 	for r in results:
 		per_task_metrics = []
