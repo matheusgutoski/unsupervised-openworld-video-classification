@@ -458,3 +458,89 @@ def build_observation_matrix(labels):
 			
 	return obs_m
 
+
+
+
+
+
+
+def save_full_report(forgetting, full_evaluation, params):
+
+	print ('saving full report...')
+	output_path = params['output_path']
+	exp_id = gen_exp_id(params)
+
+	output_path += exp_id
+	output_path += str(params['fold']) + '/'
+	output_path += str(params['model_type']) + '/'
+	output_path += str(params['iteration']) + '/'
+
+
+	makedirs(output_path)	
+
+	output_filename = 'full_report.csv'
+
+	f = open(output_path + output_filename,'w')
+
+
+
+
+	#begin forgetting-------------------------------------------------##
+
+	n_tasks = len(forgetting)
+	keys = forgetting[0].keys()
+
+	f.write('Forgetting per task\n')
+
+	#write the header for forgetting
+	f.write('Task,')
+	for k in keys:
+		f.write(str(k)+',')
+	f.write('\n')
+
+	
+	for i,j in enumerate(forgetting):
+		f.write(str(i)+',')
+		for k in keys:
+			f.write(str(forgetting[i][k]) + ',')
+		f.write('\n')
+
+	#end forgetting-------------------------------------------------##
+
+
+
+
+
+
+	#begin full report-------------------------------------------------##
+	f.write('\n\nfull report per task\n\n')
+	
+	for i in range(n_tasks):
+		f.write('\ntask '+str(i)+'\n')
+		for k in keys:
+			f.write(str(k)+',')
+		f.write('\n')
+
+		for a in range(i,n_tasks):
+			print('\n',full_evaluation[a][i])
+			for k in keys:
+				f.write(str(full_evaluation[a][i][k]) + ',')
+			f.write('\n')
+
+
+
+	print(full_evaluation)	
+	#end full report-------------------------------------------------##
+
+
+
+
+
+
+	f.close()
+	
+
+
+
+
+

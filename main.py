@@ -202,7 +202,7 @@ if __name__ == '__main__':
 		test_i3d_labels.append(int_initial_test_labels)
 
 
-	
+		
 	#train ti3d
 
 
@@ -325,7 +325,7 @@ if __name__ == '__main__':
 			#new_train_features = np.load('new_train_features_'+str(params['iteration'])+'.npy')
 			#new_test_features = np.load('new_test_features_'+str(params['iteration'])+'.npy')
 			new_train_features, new_test_features, int_new_train_labels, int_new_test_labels = utils.load_features(params, prefix = 'phase_2')
-			
+			#print(np.unique(int_new_test_labels))
 			train_i3d_features.append(new_train_features)
 			test_i3d_features.append(new_test_features)
 			train_i3d_labels.append(int_new_train_labels)
@@ -345,6 +345,8 @@ if __name__ == '__main__':
 			test_i3d_features.append(new_test_features)
 			train_i3d_labels.append(int_new_train_labels)
 			test_i3d_labels.append(int_new_test_labels)
+
+		
 
 		try:
 			params['model_type'] = 'triplet'
@@ -423,6 +425,8 @@ if __name__ == '__main__':
 		class_history.append(new_classes)
 		int_class_history.append(utils.convert_labels_to_int(new_classes, dict_map))
 
+		print(int_class_history)
+		print(np.unique(full_test_labels))
 		#input('jeje')
 
 	
@@ -508,7 +512,7 @@ if __name__ == '__main__':
 
 
 		#finetune ti3d (incremental mode)
-
+		'''
 		params['triplet_epochs'] = params['triplet_epochs_incremental']
 
 		#training set is now extreme vectors and rejected set (i3d features)
@@ -521,7 +525,7 @@ if __name__ == '__main__':
 		#this is the new data ti3d incremental representation
 		new_train_features_ti3d_incremental = train_features_ti3d_incremental[extreme_vectors_features_i3d.shape[0]:]
 
-
+		'''
 
 
 
@@ -529,6 +533,7 @@ if __name__ == '__main__':
 		#1)atualizar extreme vectors para os novos e recalcular psis (Treinamento normal usando apenas os extreme vectors como representantes das classes e sem model reduction)
 		#2)treinar as classes novas (com model reduction)
 
+		'''
 		updated_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, new_train_features)
 				 
 		new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
@@ -537,23 +542,41 @@ if __name__ == '__main__':
 
 		#increment pool of extreme vectors
 		extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
-		
+		'''
 
 
 
 
-		full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
+		full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, full_test_labels, params, warm_start_model = fixed_ti3d_model_weights)
 
 
 		#evaluate known test set and new test set (After incremental learning)
 
-		'''
+		
 		params['model_type'] = 'phase_4_fixed_ti3d_fixed_evm'
 		preds = evm.predict(evms_triplet,full_test_features_ti3d_fixed, params)
 		print('Original evm')
 		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds,params)
 
 
+		dict = {}
+		dict['x'] = full_test_features_ti3d_fixed
+		dict['y'] = full_test_labels
+		dict['preds'] = preds
+		dict['tasks'] = int_class_history
+		all_results.append(dict)
+
+	
+		
+		
+		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
+
+		utils.save_full_report(forgetting, full_evaluation, params)
+
+		print(np.unique(full_test_labels), int_class_history)
+		#input('wtf')
+
+		'''
 		params['model_type'] = 'phase_4_fixed_ti3d_updated_evm'
 		preds = evm.predict(updated_evms, full_test_features_ti3d_fixed, params)
 		print('incremented evm')
@@ -581,7 +604,7 @@ if __name__ == '__main__':
 		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds, params)
 		'''
 
-
+		'''
 		params['model_type'] = 'phase_4_incremental_ti3d_gold_evm'
 		train_features_ti3d_incremental= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
 		full_test_features_ti3d_incremental = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
@@ -601,10 +624,8 @@ if __name__ == '__main__':
 
 		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
 
-		print(forgetting)
-
-		input('keje')
-
+		utils.save_full_report(forgetting, full_evaluation, params)
+		'''
 
 		'''	to do
 		params['model_type'] = 'phase_4_gold_ti3d_updated_evm'
@@ -641,8 +662,9 @@ if __name__ == '__main__':
 
 
 
-
+		ti3d_model_incremental_weights = ti3d_model_weights # comment this later
 		ti3d_model_weights = ti3d_model_incremental_weights
+		updated_evms = evms_triplet # comment this later
 		evms_triplet = updated_evms
 		#input('end of loop')
 

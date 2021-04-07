@@ -8,6 +8,20 @@ def testcase():
 	results = []
 	params = {}
 
+
+
+	params['model'] = 'test' 
+	params['n_train_classes'] = 1
+	params['n_test_classes'] = 1
+	params['tail_size'] = 1
+	params['cover_threshold'] = 1
+	params['init_seed'] = 1
+	params['fold'] = 1
+	params['model_type'] = 'a'
+	params['iteration'] = 1
+	params['output_path'] = 'test_output/'
+
+
 	#iter 1
 
 	dict = {}
@@ -35,8 +49,13 @@ def testcase():
 	dict['tasks'] = [[1,2,3],[4,5,6],[7,8]]
 	results.append(dict)
 
-	forgetting, full_evaluation = evaluation.full_evaluation(results, params = [])
+	forgetting, full_evaluation = evaluation.full_evaluation(results, params)
 
 	print(forgetting)
+
+	import utils
+	utils.save_full_report(forgetting, full_evaluation, params)
+	
+
 
 testcase()

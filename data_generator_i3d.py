@@ -64,6 +64,7 @@ def random_temporal_crop(filenames, min_video_length, extra_frames):
                         if (len(filenames)>=desired_frames):  # give the video extra frames for the random temporal sampling
                                 break
         # apply the random temporal cropping
+        print(filenames)	
         starting_frame = randint(0,len(filenames) - min_video_length)
         filenames = filenames[starting_frame:starting_frame+min_video_length]
         return filenames

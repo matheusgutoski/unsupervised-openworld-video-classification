@@ -20,8 +20,8 @@ def fit(x_train, y_train, params, i3d_features = None):
 
 		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.cosine)
 		#evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.euclidean)
-		#evm.train(positives = positives, negatives = negatives, parallel = 8)
-		evm.train(positives = positives, negatives = negatives)
+		evm.train(positives = positives, negatives = negatives, parallel = 8)
+		#evm.train(positives = positives, negatives = negatives)
 		evms[cl] = evm
 
 		if i3d_features is not None:
