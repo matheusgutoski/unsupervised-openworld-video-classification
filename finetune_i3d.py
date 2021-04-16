@@ -179,6 +179,9 @@ def initialize_i3d_kinetics(params):
         return model
 
 def extract_features(old_model, x_train, y_train, x_test, y_test, class_indexes, params):
+        import tensorflow as tf
+        tf.random.set_seed(params['seed'])
+        np.random.seed(params['seed'])
         NUM_CLASSES_TRAIN = np.unique(y_train).shape[0]
         NUM_CLASSES_TEST = np.unique(y_test).shape[0]
         if params['model'] == 'ucf101':
@@ -212,8 +215,10 @@ def extract_features(old_model, x_train, y_train, x_test, y_test, class_indexes,
 
         print (len(x_test))
         print (len(x_train))
-        x_test_features = model.predict_generator(test_generator, steps=(len(x_test)/batch), workers=8, use_multiprocessing=False, verbose=1)
-        x_train_features = model.predict_generator(train_generator, steps=(len(x_train)/batch), workers=8, use_multiprocessing=False, verbose=1)
+        #x_test_features = model.predict_generator(test_generator, steps=(len(x_test)/batch), workers=8, use_multiprocessing=False, verbose=1)
+        #x_train_features = model.predict_generator(train_generator, steps=(len(x_train)/batch), workers=8, use_multiprocessing=False, verbose=1)
+        x_test_features = model.predict(test_generator, steps=(len(x_test)/batch), workers=8, use_multiprocessing=False, verbose=1)
+        x_train_features = model.predict(train_generator, steps=(len(x_train)/batch), workers=8, use_multiprocessing=False, verbose=1)
 
         print (x_train_features.shape, len(x_train))
         print (x_test_features.shape, len(x_test))
@@ -253,7 +258,7 @@ def extract_features_single(old_model, x_train, y_train, class_indexes, params, 
         train_generator = DataGenerator(x_train, **gen_params)
 
         print (len(x_train))
-        x_train_features = model.predict_generator(train_generator, steps=(len(x_train)/batch), workers=8, use_multiprocessing=False, verbose=1)
+        x_train_features = model.predict(train_generator, steps=(len(x_train)/batch), workers=8, use_multiprocessing=False, verbose=1)
 
         print (x_train_features.shape, len(x_train))
 
@@ -335,8 +340,9 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         from keras.optimizers import SGD,Adam
         #import data_generator_openset as gen
         #import utils
-        np.random.seed(2020)
-
+        np.random.seed(params['seed'])
+        import tensorflow as tf
+        tf.random.set_seed(params['seed'])
 
 
 
@@ -375,7 +381,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
 
 
 
-        def generate_semihard_triplets(x, y, embeddings, margin = 0.2, max_anchors_class = 2000, max_negatives = 500, use_hard_triplets = True, limit_triplets_class = 50000):
+        def generate_semihard_triplets(x, y, embeddings, margin = 0.2, max_anchors_class = 2000, max_negatives = 500, use_hard_triplets = True, limit_triplets_class = 8000):
                 np.random.seed(2020)
                 if use_hard_triplets:
                         print ('generating hard and semihard triplets...')
@@ -387,6 +393,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                 x = np.array(x)
                 y = np.array(y)
                 embeddings = np.array(embeddings)
+	
 
                 unique_y = np.unique(y)
                 train_triplets = []
@@ -398,6 +405,7 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                         max_anchors_class = int(current_class_data.shape[0]/3)
                         #input(current_class_data)
                         current_class_embeddings = embeddings[current_class_idx]
+
                         negative_idx = np.where(y != un)[0]
                         negatives = x[negative_idx]
                         negatives_embeddings = embeddings[negative_idx]
@@ -416,7 +424,6 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                         positive_idx = list(set(range(current_class_data.shape[0])) ^ set(perm))
                         positives = current_class_data[positive_idx].copy()
                         positives_embeddings = current_class_embeddings[positive_idx].copy()
-                        
                         print(len(anchors_embeddings), len(positives_embeddings))
                         if(len(anchors_embeddings) == 0 or len(positives_embeddings) == 0):
                                 print('Could not form anchor positive pairs for class',un)
@@ -425,7 +432,6 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
                                 
                         anchor_positive_distances = cosine_distances(anchors_embeddings, positives_embeddings)
                         anchor_negative_distances = cosine_distances(anchors_embeddings, negatives_embeddings)
-
                         semihards = 0
                         hards = 0
                         counter = 0
@@ -504,9 +510,12 @@ def finetune_triplet_net(x_train, int_y_train, x_test, params, warm_start_model 
         for i in range(epochs):
                 trained_model = Model(inputs=anchor_input, outputs=encoded_anchor)
                 print ("getting train embeddings...")
+
                 embeddings = trained_model.predict(x_train)
                 #plot_embeddings(embeddings, int_y_train, plot_path+'train_'+str(i)+'.jpg')
-                X_train = generate_semihard_triplets(x_train, int_y_train, embeddings, margin = params['margin'], max_anchors_class = 50, max_negatives = 150, use_hard_triplets = True)
+                X_train = generate_semihard_triplets(x_train, int_y_train, embeddings, margin = params['margin'], max_anchors_class = 500, max_negatives = 500, use_hard_triplets = True)
+                #X_train = generate_semihard_triplets(x_train, int_y_train, embeddings, margin = params['margin'], max_anchors_class = 10, max_negatives = 10, use_hard_triplets = True)
+
                 if X_train is None:
                         print ('early stopping...')
                         break
@@ -536,6 +545,8 @@ def extract_features_triplet_net(x_train, int_y_train, params, warm_start_model 
         #import data_generator_openset as gen
         #import utils
         np.random.seed(2020)
+        import tensorflow as tf
+        tf.random.set_seed(params['seed'])
 
 
 
@@ -609,7 +620,7 @@ def extract_features_triplet_net(x_train, int_y_train, params, warm_start_model 
                         #select max_anchor_class anchors
                         perm = np.random.permutation(current_class_data.shape[0])[:max_anchors_class]
                         anchors = current_class_data[perm].copy()
-
+                        
                         anchors_embeddings = current_class_embeddings[perm].copy()
 
                         positive_idx = list(set(range(current_class_data.shape[0])) ^ set(perm))

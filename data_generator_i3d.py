@@ -9,7 +9,8 @@ import time
 import keras
 from sklearn.model_selection import train_test_split
 
-PATH_TO_FRAMES = '/home/users/datasets/UCF-101_opticalflow/'
+PATH_TO_FRAMES = '/home/users/matheus/doutorado/openworld/openworld/ucf101/home/users/datasets/UCF-101_opticalflow/'
+#PATH_TO_FRAMES = '/home/users/datasets/UCF-101_opticalflow/'
 #PATH_TO_FRAMES = '/home/ssd/UCF-101_opticalflow/'
 
 print ('Path to images:', PATH_TO_FRAMES)
@@ -64,7 +65,6 @@ def random_temporal_crop(filenames, min_video_length, extra_frames):
                         if (len(filenames)>=desired_frames):  # give the video extra frames for the random temporal sampling
                                 break
         # apply the random temporal cropping
-        print(filenames)	
         starting_frame = randint(0,len(filenames) - min_video_length)
         filenames = filenames[starting_frame:starting_frame+min_video_length]
         return filenames

@@ -28,12 +28,12 @@ def clustering_metrics(x,y,pred):
 	try:
 		calinski_harabasz_score = me.calinski_harabasz_score(x,pred)
 	except:
-		calinski_harabasz_score = 'undefined'
+		calinski_harabasz_score = 0
 
 	try:
 		davies_bouldin_score = me.davies_bouldin_score(x,pred)
 	except:
-		davies_bouldin_score = 'undefined'
+		davies_bouldin_score = 0
 
 	fowlkes_mallows_score = me.fowlkes_mallows_score(y,pred)
 	mutual_info_score = me.mutual_info_score(y,pred)
@@ -42,12 +42,12 @@ def clustering_metrics(x,y,pred):
 	try:
 		sil_score_euc = me.silhouette_score(x,pred,metric='euclidean')
 	except:
-		sil_score_euc = 'undefined'
+		sil_score_euc = 0
 
 	try:
 		sil_score_cos = me.silhouette_score(x,pred,metric='cosine')
 	except:
-		sil_score_cos = 'undefined'	
+		sil_score_cos = 0	
 
 	dict = {}
 	dict['completeness'] = completeness_score
@@ -100,6 +100,9 @@ def full_evaluation(results, params):
 	#	  forgetting_per_task: um array onde cada posicao eh um dicionario que contem o forgetting de uma das tasks. Leva em consideracao todas as metricas.
 	#	  per_iteration_metrics: metricas por task para cada iteracao
 
+
+	
+
 	per_iteration_metrics = []
 	for r in results:
 		per_task_metrics = []
@@ -108,15 +111,17 @@ def full_evaluation(results, params):
 		preds = r['preds']
 		tasks = r['tasks']
 
-		print('\n\n\n',tasks,'\n\n\n')
-		for t in tasks:
+		#print('tasks:',tasks)
+		#print('y',y)
+		for h,t in enumerate(tasks):
+			#print('\n\n',h,'\n\n')
 			relevant_x = [x[i] for i in range(len(y)) if y[i] in t]
 			relevant_y = [y[i] for i in range(len(y)) if y[i] in t]
 			relevant_preds = [preds[i] for i in range(len(y)) if y[i] in t]
 
-			print(relevant_y)
+			#print('relevant y',relevant_y)
 			#print(relevant_preds)
-			print(t)
+			#print('task',t)
 			#print(y)
 			
 			cl_metrics = clustering_metrics(relevant_x,relevant_y,relevant_preds)
@@ -157,9 +162,9 @@ def full_evaluation(results, params):
 		forgetting_task = {}
 		#print(max_metrics_task)
 		for k in keys:
-			#print(k)
+			print(k)
 			current_metrics = [r[k] for r in metrics_current_task]
-			#print(current_metrics)
+			print(current_metrics)
 			max_metrics_task[k] = np.amax(current_metrics)
 			forgetting_task[k] =  np.amax(current_metrics) - current_metrics[-1]
 	
