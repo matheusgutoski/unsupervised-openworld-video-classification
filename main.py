@@ -31,10 +31,13 @@ if __name__ == '__main__':
 	parser.add_argument('--margin', help='triplet net margin parameter', type=float, default = 0.2)
 	parser.add_argument('--batch_size', help='batch size', type=int, default = 6)
 	parser.add_argument('--triplet_batch_size', help='batch size of triplet net', type=int, default = 128)
-	parser.add_argument('--tail_size', help='weibull tail size for evm', type=int, default = 10)
+	parser.add_argument('--tail_size', help='weibull tail size for evm. If < 1, uses ratio of data instead', type=float, default = 10)
 	parser.add_argument('--cover_threshold', help='evm cover threshold', type=float, default = 0.1)
 	parser.add_argument('--classification_threshold', help='probability threshold for accepting points in evm', type=float, default = 0.001)
 	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'prototype_results/')
+	parser.add_argument('--ti3d_type', help='ti3d type', type=str, default = 'incremental', choices = ['incremental', 'gold', 'fixed'])
+	parser.add_argument('--online', help='train ti3d in 1 epoch', action='store_true')
+	parser.add_argument('--incremental_evm', help='use incremental evm instead of gold standard', action='store_true')
 	parser.add_argument('--seed', help='Random seed. 123450 sets seed to random', type=int, default = 5)
 	parser.add_argument('--gpu', help='gpu id', type=int)
 	parser.add_argument('--expid', help='exp id', type=str)
@@ -94,7 +97,10 @@ if __name__ == '__main__':
 	params['estimate_new_data_evs'] = False
 
 	#params['online'] = False
-	params['online'] = True
+	#params['online'] = True
+	params['online'] = args.online
+	params['incremental_evm'] = args.incremental_evm
+	params['ti3d_type'] = args.ti3d_type
 
 	#get filenames
 	filenames = gen.get_filenames()	
@@ -193,7 +199,8 @@ if __name__ == '__main__':
 		params['model_type'] = 'cnn'
 		model, model_weights = utils.load_i3d_model(params,initial_n_classes)
 		train_features, test_features, int_initial_train_labels ,int_initial_test_labels = utils.load_features(params)
-	except:
+	except Exception as e:
+		#input('?'+str(e))
 		params['model_type'] = 'cnn'
 		model, hist_cnn, model_weights = finetune_i3d.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
 		utils.save_i3d_model(model, model_weights, params) #very expensive storage
@@ -528,8 +535,10 @@ if __name__ == '__main__':
 			hierarchical_preds = estimated_extreme_vectors_labels
 		
 
-
-		params['triplet_epochs'] = params['triplet_epochs_incremental']
+		if params['online']:
+			params['triplet_epochs'] = 1
+		else:
+			params['triplet_epochs'] = params['triplet_epochs_incremental']
 
 		#training set is now extreme vectors and rejected set (i3d features)
 		ti3d_finetune_set = np.concatenate((extreme_vectors_features_i3d,rejected_set_features_i3d))
@@ -549,21 +558,21 @@ if __name__ == '__main__':
 		#1)atualizar extreme vectors para os novos e recalcular psis (Treinamento normal usando apenas os extreme vectors como representantes das classes e sem model reduction)
 		#2)treinar as classes novas (com model reduction)
 
-		'''
-		updated_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, new_train_features)
+		
+		if params['incremental_evm']:
+			updated_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, new_train_features)
 				 
-		new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
-		print(new_extreme_vectors_i3d.shape, new_extreme_vectors_labels)
+			new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
+			print(new_extreme_vectors_i3d.shape, new_extreme_vectors_labels)
+
+			#increment pool of extreme vectors
+			extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
+		
 
 
-		#increment pool of extreme vectors
-		extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
-		'''
 
 
-
-
-		#full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, full_test_labels, params, warm_start_model = fixed_ti3d_model_weights)
+		
 
 
 		#evaluate known test set and new test set (After incremental learning)
@@ -626,99 +635,112 @@ if __name__ == '__main__':
 
 
 
-				 
-		
-		####
-		'''
-		
-		if params['online']:
-			params['model_type'] = 'phase_4_incremental_ti3d_gold_evm_online'
-			params['triplet_epochs'] = 1
-		else:
-			params['model_type'] = 'phase_4_incremental_ti3d_gold_evm'
-		train_features_ti3d_incremental= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
-		full_test_features_ti3d_incremental = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
-		print(train_features_ti3d_incremental.shape, len(flattened_train_i3d_labels), train_features.shape)
-		gold_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.fit(train_features_ti3d_incremental, flattened_train_i3d_labels, params, flattened_train_i3d_features)
-		new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
-		print(new_extreme_vectors_i3d.shape, new_extreme_vectors_labels)
-		#increment pool of extreme vectors
-		extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
+		if params['ti3d_type'] == 'incremental':	
+			if params['incremental_evm']:
+				if params['online']:
+					params['model_type'] = 'phase_4_incremental_ti3d_incremental_evm_tail_'+str(params['tail_size'])+'_online'
+					#params['triplet_epochs'] = 1
+				else:
+					params['model_type'] = 'phase_4_incremental_ti3d_incremental_evm_tail_'+str(params['tail_size'])
+
+			else:	 
+				if params['online']:
+					params['model_type'] = 'phase_4_incremental_ti3d_gold_evm_tail_'+str(params['tail_size'])+'_online'
+					#params['triplet_epochs'] = 1
+				else:
+					params['model_type'] = 'phase_4_incremental_ti3d_gold_evm_tail_'+str(params['tail_size'])
+
+			train_features_ti3d_incremental= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+			full_test_features_ti3d_incremental = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+			print(train_features_ti3d_incremental.shape, len(flattened_train_i3d_labels), train_features.shape)
+			
+
+			if params['incremental_evm']:
+				preds = evm.predict(updated_evms,full_test_features_ti3d_incremental, params)
+				print('incremental ti3d incremental evm')
+			else:
+				gold_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.fit(train_features_ti3d_incremental, flattened_train_i3d_labels, params, flattened_train_i3d_features)
+				new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
+				print(new_extreme_vectors_i3d.shape, new_extreme_vectors_labels)
+				#increment pool of extreme vectors
+				extreme_vectors_features_i3d, extreme_vectors_labels = np.concatenate((extreme_vectors_features_i3d, new_extreme_vectors_i3d)), np.concatenate((extreme_vectors_labels, new_extreme_vectors_labels))
+
+				preds = evm.predict(gold_evms,full_test_features_ti3d_incremental, params)
+				print('incremental ti3d gold evm')
+				
+
+			evaluation.single_evaluation_clustering(full_test_features_ti3d_incremental,full_test_labels,preds, params)
 
 
-		preds = evm.predict(gold_evms,full_test_features_ti3d_incremental, params)
-		print('incremental ti3d gold evm')
-		evaluation.single_evaluation_clustering(full_test_features_ti3d_incremental,full_test_labels,preds, params)
+			dict = {}
+			dict['x'] = full_test_features_ti3d_incremental.copy()
+			dict['y'] = full_test_labels.copy()
+			dict['preds'] = preds.copy()
+			dict['tasks'] = int_class_history.copy()
+			all_results.append(dict.copy())
 
 
-		dict = {}
-		dict['x'] = full_test_features_ti3d_incremental.copy()
-		dict['y'] = full_test_labels.copy()
-		dict['preds'] = preds.copy()
-		dict['tasks'] = int_class_history.copy()
-		all_results.append(dict.copy())
+			forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
 
-
-		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
-
-		utils.save_full_report(forgetting, full_evaluation, params)
-		'''
-		
-
-
-		
-
-
-
-		if params['online']:
-			params['model_type'] = 'phase_4_gold_ti3d_gold_evm_online'
-			params['triplet_epochs'] = 1
-		else:
-			params['model_type'] = 'phase_4_gold_ti3d_gold_evm'
-		train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
-		full_test_features_ti3d_gold = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
-		gold_evms = evm.fit(train_features_ti3d_gold, flattened_train_i3d_labels, params)
-
-		preds = evm.predict(gold_evms,full_test_features_ti3d_gold, params)
-		print('gold ti3d gold evm')
-		evaluation.single_evaluation_clustering(full_test_features_ti3d_gold,full_test_labels,preds, params)
-
-		dict = {}
-		dict['x'] = full_test_features_ti3d_gold.copy()
-		dict['y'] = full_test_labels.copy()
-		dict['preds'] = preds.copy()
-		dict['tasks'] = int_class_history.copy()
-		all_results.append(dict.copy())
-
-
-		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
-
-		utils.save_full_report(forgetting, full_evaluation, params)
+			utils.save_full_report(forgetting, full_evaluation, params)
 		
 
-		'''
-		full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, full_test_labels, params, warm_start_model = fixed_ti3d_model_weights)
-		params['model_type'] = 'phase_4_fixed_ti3d_gold_evm'
-		train_features_ti3d_fixed= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
-		gold_evms = evm.fit(train_features_ti3d_fixed, flattened_train_i3d_labels, params)
-		preds = evm.predict(gold_evms,full_test_features_ti3d_fixed, params)
-		print('fixed ti3d gold evm')
-		evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds, params)
+
+		
 
 
-		dict = {}
-		dict['x'] = full_test_features_ti3d_fixed.copy()
-		dict['y'] = full_test_labels.copy()
-		dict['preds'] = preds.copy()
-		dict['tasks'] = int_class_history.copy()
-		all_results.append(dict.copy())
+		if(params['ti3d_type'] == 'gold'):		 
+
+			if params['online']:
+				params['model_type'] = 'phase_4_gold_ti3d_gold_evm_online'
+				params['triplet_epochs'] = 1
+			else:
+				params['model_type'] = 'phase_4_gold_ti3d_gold_evm'
+			train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
+			full_test_features_ti3d_gold = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
+			gold_evms = evm.fit(train_features_ti3d_gold, flattened_train_i3d_labels, params)
+
+			preds = evm.predict(gold_evms,full_test_features_ti3d_gold, params)
+			print('gold ti3d gold evm')
+			evaluation.single_evaluation_clustering(full_test_features_ti3d_gold,full_test_labels,preds, params)
+
+			dict = {}
+			dict['x'] = full_test_features_ti3d_gold.copy()
+			dict['y'] = full_test_labels.copy()
+			dict['preds'] = preds.copy()
+			dict['tasks'] = int_class_history.copy()
+			all_results.append(dict.copy())
 
 
-		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
+			forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
 
-		utils.save_full_report(forgetting, full_evaluation, params)
+			utils.save_full_report(forgetting, full_evaluation, params)
+		
 
-		'''
+
+		if(params['ti3d_type'] == 'fixed'):		 
+
+			full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, full_test_labels, params, warm_start_model = fixed_ti3d_model_weights)
+			params['model_type'] = 'phase_4_fixed_ti3d_gold_evm'
+			train_features_ti3d_fixed= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
+			gold_evms = evm.fit(train_features_ti3d_fixed, flattened_train_i3d_labels, params)
+			preds = evm.predict(gold_evms,full_test_features_ti3d_fixed, params)
+			print('fixed ti3d gold evm')
+			evaluation.single_evaluation_clustering(full_test_features_ti3d_fixed,full_test_labels,preds, params)
+
+
+			dict = {}
+			dict['x'] = full_test_features_ti3d_fixed.copy()
+			dict['y'] = full_test_labels.copy()
+			dict['preds'] = preds.copy()
+			dict['tasks'] = int_class_history.copy()
+			all_results.append(dict.copy())
+
+
+			forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
+
+			utils.save_full_report(forgetting, full_evaluation, params)
+
 
 
 		'''	to do
@@ -758,7 +780,8 @@ if __name__ == '__main__':
 
 		#ti3d_model_incremental_weights = ti3d_model_weights # comment this later
 		ti3d_model_weights = ti3d_model_incremental_weights
-		updated_evms = evms_triplet # comment this later
+		if not params['incremental_evm']:
+			updated_evms = evms_triplet 
 		evms_triplet = updated_evms
 		#input('end of loop')
 

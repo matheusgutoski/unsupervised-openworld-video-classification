@@ -6,6 +6,11 @@ import scipy
 
 def fit(x_train, y_train, params, i3d_features = None):
 	evms = {}
+	params = params.copy()
+	if params['tail_size'] <= 1.0:
+		params['tail_size'] = len(x_train)*params['tail_size']
+	print('tail size:', params['tail_size'])
+
 	if i3d_features is not None:
 		original_extreme_vectors, original_extreme_vectors_labels = [],[]
 
@@ -118,6 +123,12 @@ def extreme_vectors(evms):
 def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, new_train_labels, params, i3d_features = None):
 	print('Training incremental evms...')
 	evms = {}
+	params = params.copy()
+
+	if params['tail_size'] <= 1.0:
+		params['tail_size'] = len(new_train_features)*params['tail_size']
+	print('tail size:', params['tail_size'])
+
 	if i3d_features is not None:
 		original_extreme_vectors, original_extreme_vectors_labels = [],[]
 
@@ -129,7 +140,9 @@ def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, n
 
 		negatives = negatives + new_train_features.tolist()
 		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = None, distance_function=scipy.spatial.distance.cosine)
-		evm.train(positives = positives, negatives = negatives, parallel = 8)
+		#evm.train(positives = positives, negatives = negatives, parallel = 8)
+		evm.train(positives = positives, negatives = negatives)
+
 		evms[cl] = evm
 
 	for cl in np.unique(new_train_labels): # train one evm for each extreme vector class
@@ -143,7 +156,8 @@ def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, n
 
 		negatives = negatives + extreme_vectors.tolist()
 		evm = EVM.EVM(tailsize=params['tail_size'], cover_threshold = params['cover_threshold'], distance_function=scipy.spatial.distance.cosine)
-		evm.train(positives = positives, negatives = negatives, parallel = 8)
+		#evm.train(positives = positives, negatives = negatives, parallel = 8)
+		evm.train(positives = positives, negatives = negatives)
 		evms[cl] = evm
 
 		if i3d_features is not None:

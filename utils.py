@@ -70,7 +70,9 @@ def openness_Geng(training_classes, testing_classes):
 def gen_exp_id(params):
         exp_id = params['model'] + '/'
         exp_id += 'train_' + str(params['n_train_classes']) + '__test_' + str(params['n_test_classes']) + '__'
-        exp_id += 'tail_' + str(params['tail_size']) + '__cover_' + str(params['cover_threshold']) + '__'
+        #exp_id += 'tail_' + str(params['tail_size']) + '__cover_' + str(params['cover_threshold']) + '__'
+        exp_id += 'tail_' + str(10) + '__cover_' + str(params['cover_threshold']) + '__'
+
         exp_id += 'seed_' + str(params['init_seed']) + '/'
 
         return exp_id
