@@ -186,6 +186,9 @@ def save_ti3d_model(model,model_weights, params):
 
                 output_path += exp_id
                 output_path += str(params['fold']) + '/'
+                output_path += str(params['model_type']) + '/'
+                output_path += str(params['iteration']) + '/'
+
                 makedirs(output_path)
                 model.save(output_path + 'ti3d_model.h5')   
                 save_pickle(model_weights, output_path,'ti3d_model_weights')
@@ -233,7 +236,7 @@ def load_ti3d_model(params):
         return model.set_weights(model_weights), model_weights
 
 
-def save_evm_models(evms,params):
+def save_evm_models(evms,params, save_params = False):
  
         def plot_pdf_weibull(evm_class, i, scale, shape, pdf_plot_filename):
                 import matplotlib
@@ -293,6 +296,7 @@ def save_evm_models(evms,params):
         output_path += exp_id
         output_path += str(params['fold']) + '/'
         output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
         makedirs(output_path)
 
 
@@ -303,7 +307,8 @@ def save_evm_models(evms,params):
         pickle.dump(evms, dbfile)
         #load with pickle.load(open('evms.pickle', 'rb'))
 
-        save_weibulls_parameters(evms, params, output_path)
+        if save_params:
+                save_weibulls_parameters(evms, params, output_path)
 
 
 
@@ -370,6 +375,55 @@ def save_ti3d_features(x_train_features, x_test_features, y_train, y_test, open_
         np.save(output_path + prefix + 'open_y_test.npy', open_y_test)
 
 
+
+
+def plot_confusion_matrix(preds,y,output_path):
+	import matplotlib
+	matplotlib.use('agg')
+	import matplotlib.pyplot as plt
+	from sklearn.metrics import confusion_matrix
+	import seaborn as sn
+	
+	preds = [str(x).split('_')[2] if '_' in str(x) else str(x) for x in preds].copy()
+	y = [str(x) for x in y].copy()
+
+	#this inserts unknowns in the cm
+	y[:0] = ['0']
+	preds[:0] = ['0']
+
+	order = list(dict.fromkeys(y))
+
+			
+	cm = confusion_matrix(y,preds, labels = order, normalize = 'true')
+	
+	plt.figure(figsize=(20,20))
+	plt.title('confusion matrix')
+	sn.heatmap(cm,annot=True)
+	plt.savefig(output_path+'confusion_matrix.png')
+	plt.close()
+
+	#input('??')
+
+
+def save_predictions(preds, y, params, cm=True, prefix = ''):
+        print ('saving predictions...')
+        output_path = params['output_path']
+        exp_id = gen_exp_id(params)
+
+        output_path += exp_id
+        output_path += str(params['fold']) + '/'
+        output_path += str(params['model_type']) + '/'
+        output_path += str(params['iteration']) + '/'
+
+        makedirs(output_path)
+
+        preds = np.array(preds)
+        np.save(output_path + prefix + 'preds.npy', preds)
+        
+        if cm:
+                plot_confusion_matrix(preds,y,output_path)
+
+
 def save_hist(hist, params):
         if hist is not None:
                 print ('saving histories...')
@@ -379,6 +433,8 @@ def save_hist(hist, params):
                 output_path += exp_id
                 output_path += str(params['fold']) + '/'
                 output_path += str(params['model_type']) + '/'
+                output_path += str(params['iteration']) + '/'
+
                 makedirs(output_path)
 
                 import pickle
@@ -396,6 +452,7 @@ def save_hist_triplet(hist, params):
                 output_path += exp_id
                 output_path += str(params['fold']) + '/'
                 output_path += str(params['model_type']) + '/'
+                output_path += str(params['iteration']) + '/'
                 makedirs(output_path)
 
                 import pickle

@@ -422,7 +422,8 @@ if __name__ == '__main__':
 
 		# classify triplet model data with evm and get classification metrics
 
-		print(np.unique(full_open_test_labels),np.unique(full_test_labels))
+		#print(np.unique(full_open_test_labels),np.unique(full_test_labels))
+		print('phase 2 evm predict')
 		pred = evm.predict(evms_triplet, full_test_features_ti3d, params)
 		evaluation.single_evaluation_openset(full_open_test_labels,pred,params)
 		evaluation.single_evaluation_clustering(full_test_features_ti3d,full_open_test_labels,pred, params)
@@ -639,14 +640,12 @@ if __name__ == '__main__':
 			if params['incremental_evm']:
 				if params['online']:
 					params['model_type'] = 'phase_4_incremental_ti3d_incremental_evm_tail_'+str(params['tail_size'])+'_online'
-					#params['triplet_epochs'] = 1
 				else:
 					params['model_type'] = 'phase_4_incremental_ti3d_incremental_evm_tail_'+str(params['tail_size'])
 
 			else:	 
 				if params['online']:
 					params['model_type'] = 'phase_4_incremental_ti3d_gold_evm_tail_'+str(params['tail_size'])+'_online'
-					#params['triplet_epochs'] = 1
 				else:
 					params['model_type'] = 'phase_4_incremental_ti3d_gold_evm_tail_'+str(params['tail_size'])
 
@@ -656,8 +655,11 @@ if __name__ == '__main__':
 			
 
 			if params['incremental_evm']:
+				print('phase 4 evm predict')
 				preds = evm.predict(updated_evms,full_test_features_ti3d_incremental, params)
 				print('incremental ti3d incremental evm')
+				utils.save_evm_models(updated_evms,params,save_params = False)
+
 			else:
 				gold_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.fit(train_features_ti3d_incremental, flattened_train_i3d_labels, params, flattened_train_i3d_features)
 				new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
@@ -667,7 +669,8 @@ if __name__ == '__main__':
 
 				preds = evm.predict(gold_evms,full_test_features_ti3d_incremental, params)
 				print('incremental ti3d gold evm')
-				
+				utils.save_evm_models(gold_evms,params,save_params = False)
+
 
 			evaluation.single_evaluation_clustering(full_test_features_ti3d_incremental,full_test_labels,preds, params)
 
@@ -683,11 +686,10 @@ if __name__ == '__main__':
 			forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
 
 			utils.save_full_report(forgetting, full_evaluation, params)
-		
-
-
-		
-
+			utils.save_ti3d_features(train_features_ti3d_incremental, full_test_features_ti3d_incremental,flattened_train_i3d_labels, full_test_labels, full_open_test_labels, params, prefix = 'phase_4_')
+			utils.save_ti3d_model(ti3d_model_incremental,ti3d_model_incremental_weights, params)
+			utils.save_predictions(preds, full_test_labels, params, cm=True)
+			utils.save_hist_triplet(hist_triplet, params)
 
 		if(params['ti3d_type'] == 'gold'):		 
 
