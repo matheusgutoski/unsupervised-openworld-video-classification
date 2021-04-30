@@ -135,6 +135,8 @@ if __name__ == '__main__':
 	#perform train/test split
 
 	train, train_labels, test, test_labels = utils.train_test_split_groups(filenames, unique_classes, params)
+	print(len(train_labels), len(test_labels), len(train_labels) + len(test_labels))
+	#input('??')
 	int_train_labels = utils.convert_labels_to_int(train_labels, dict_map)
 	int_test_labels = utils.convert_labels_to_int(test_labels, dict_map)
 
