@@ -86,16 +86,16 @@ def args_inc(argv=None,r_seed = None):
     parser.add_argument('--stop-at-task', default=0, type=int, required=False,
                         help='Stop training after specified task (default=%(default)s)')
     # model args
-    parser.add_argument('--network', default='googlenet', type=str, choices=allmodels,
+    parser.add_argument('--network', default='simple_mlp', type=str, choices=allmodels,
                         help='Network architecture used (default=%(default)s)', metavar="NETWORK")
     parser.add_argument('--keep-existing-head', action='store_true',
                         help='Disable removing classifier last layer (default=%(default)s)')
     parser.add_argument('--pretrained', action='store_true',
                         help='Use pretrained backbone (default=%(default)s)')
     # training args
-    parser.add_argument('--approach', default='finetuning', type=str, choices=approach.__all__,
+    parser.add_argument('--approach', default='bic', type=str, choices=approach.__all__,
                         help='Learning approach used (default=%(default)s)', metavar="APPROACH")
-    parser.add_argument('--nepochs', default=200, type=int, required=False,
+    parser.add_argument('--nepochs', default=10, type=int, required=False,
                         help='Number of epochs per training session (default=%(default)s)')
     parser.add_argument('--lr', default=0.1, type=float, required=False,
                         help='Starting learning rate (default=%(default)s)')
@@ -598,9 +598,19 @@ if __name__ == '__main__':
 		data[tt]['tst'] = {'x': [], 'y': []}
 
 	for this_task in range(n_tasks):
-		dummy_data = np.zeros((3,128,128))
-		dummy_label = 0
-		for a in range(100):
+		dummy_data = np.zeros((1024))
+		#dummy_data = np.zeros((3,128,128))
+
+		
+		for a in range(200):
+			if this_task == 0:
+				low = 0
+				high = 11 # up to but no including
+			else:
+				low = 10*this_task + 1
+				high = low + 10
+			dummy_label = np.random.randint(low, high)
+
 			data[this_task]['trn']['x'].append(dummy_data)
 			data[this_task]['trn']['y'].append(dummy_label)
 
@@ -711,13 +721,23 @@ if __name__ == '__main__':
 
 
 
-
+	import torch
 	for t, (_, ncla) in enumerate(taskcla):
 		print(device)
 		net.to(device)
 		net.add_head(taskcla[t][1])
 
 		appr.train(t, trn_load[t], val_load[t])
+		aa,bb,cc,preds,targ = appr.eval(t, tst_load[t])
+
+		outputs = [torch.nn.functional.log_softmax(output, dim=1) for output in preds[0]]
+		pred = torch.cat(outputs, dim=1).argmax(1)
+
+		print('out',pred)
+		input('???????SAsasf')
+		print('targets',targ)
+	#evaluation.single_evaluation_clustering(test_features,open_y_test,pred, params)
+
 	input('aaaaa')
 	#pred = clf.predict(evms_triplet, test_features, params)
 	pred = np.zeros((test_features.shape[0]))
