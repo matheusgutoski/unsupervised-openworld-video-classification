@@ -25,7 +25,7 @@ from torch.utils import data as tdata
 import os
 import time
 import torch
-torch.set_default_tensor_type('torch.DoubleTensor')
+torch.set_default_tensor_type('torch.FloatTensor')
 
 import argparse
 import importlib
@@ -555,7 +555,7 @@ if __name__ == '__main__':
 		
 
 		#model, model_weights = utils.load_i3d_model(params,initial_n_classes)
-		train_features, test_features, int_initial_train_labels ,int_initial_test_labels = utils.load_features(params)
+		train_features, test_features, int_train_labels ,int_test_labels = utils.load_features(params)
 		#input('')
 	except Exception as e:
 		#input('?'+str(e))
@@ -566,26 +566,54 @@ if __name__ == '__main__':
 		utils.save_features(train_features, test_features, int_train_labels, int_test_labels, int_test_labels , params)
 	print(train_features.shape, test_features.shape)
 
-
-
+		
+	print(np.unique(int_train_labels) ,np.unique(int_test_labels))
 	task_classes = {}
 	n_tasks = 10
 	initial_n_classes = 11
 	n_classes_per_task = 10
 	total_classes = 101
 		
+	int_class_shuffle = utils.convert_labels_to_int(class_shuffle,dict_map)
+
+	seq_dict_map = {}
+	for i in range(101):
+		seq_dict_map[int_class_shuffle[i]] = i 
+
+
+	print(seq_dict_map)
 	c = 0
 	for n in range(n_tasks):
 		if n==0:
-			task_classes[n] = class_shuffle[0:initial_n_classes]
-			c+=initial_n_classes-1
+			task_classes[n] = utils.convert_labels_to_int(class_shuffle[0:initial_n_classes],dict_map)
+			c+=initial_n_classes
 		else:
-			task_classes[n] = class_shuffle[c:c+n_classes_per_task]
-			c+=n_classes_per_task-1
+			task_classes[n] = utils.convert_labels_to_int(class_shuffle[c:c+n_classes_per_task],dict_map)
+			c+=n_classes_per_task
 
 	for k,v in task_classes.items():
 		print(k,v)
+		
 
+		'''
+		new_train = []
+		new_train_labels = []
+		new_test = []
+		new_test_labels = []
+
+		for t, tl in zip(train, train_labels):
+			if tl in new_classes:
+				new_train.append(t)
+				new_train_labels.append(tl)
+
+		for t, tl in zip(test, test_labels):
+			if tl in new_classes:
+				new_test.append(t)
+				new_test_labels.append(tl)
+
+		int_new_train_labels = utils.convert_labels_to_int(new_train_labels, dict_map)
+		int_new_test_labels = utils.convert_labels_to_int(new_test_labels, dict_map)
+		'''
 
 
 	data = {}
@@ -598,10 +626,46 @@ if __name__ == '__main__':
 		data[tt]['tst'] = {'x': [], 'y': []}
 
 	for this_task in range(n_tasks):
-		dummy_data = np.zeros((1024))
-		#dummy_data = np.zeros((3,128,128))
+		new_train = []
+		new_train_labels = []
+		new_test = []
+		new_test_labels = []
 
-		
+		for t, tl in zip(train_features, int_train_labels):
+			if tl in task_classes[this_task]:
+				new_train.append(t)
+				new_train_labels.append(tl)
+
+		for t, tl in zip(test_features, int_test_labels):
+			if tl in task_classes[this_task]:
+				new_test.append(t)
+				new_test_labels.append(tl)
+
+		print(np.unique(new_train_labels),np.unique(new_test_labels), np.unique(task_classes[this_task]))
+		print(task_classes[this_task])
+
+		#for l in new_train_labels:
+			#print(l, seq_dict_map[l])
+		#print([seq_dict_map[x] for x in new_train_labels])
+		input('a')
+
+		for t,tl in zip(new_train, new_train_labels):
+			data[this_task]['trn']['x'].append(t)
+			data[this_task]['trn']['y'].append(seq_dict_map[tl])
+			data[this_task]['val']['x'].append(t) # fix later
+			data[this_task]['val']['y'].append(seq_dict_map[tl])
+
+		for t,tl in zip(new_test, new_test_labels):
+
+			data[this_task]['tst']['x'].append(t)
+			data[this_task]['tst']['y'].append(seq_dict_map[tl])
+
+			
+
+
+
+		'''
+		#dummy_data = np.zeros((1024))
 		for a in range(200):
 			if this_task == 0:
 				low = 0
@@ -619,7 +683,11 @@ if __name__ == '__main__':
 
 			data[this_task]['val']['x'].append(dummy_data)
 			data[this_task]['val']['y'].append(dummy_label)
+		'''
 
+
+
+		#input('eae')
 	for tt in range(n_tasks):
 		data[tt]['ncla'] = len(np.unique(data[tt]['trn']['y']))
 
@@ -734,7 +802,7 @@ if __name__ == '__main__':
 		pred = torch.cat(outputs, dim=1).argmax(1)
 
 		print('out',pred)
-		input('???????SAsasf')
+		#input('???????SAsasf')
 		print('targets',targ)
 	#evaluation.single_evaluation_clustering(test_features,open_y_test,pred, params)
 
