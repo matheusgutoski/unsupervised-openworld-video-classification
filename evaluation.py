@@ -111,17 +111,17 @@ def full_evaluation(results, params):
 		preds = r['preds']
 		tasks = r['tasks']
 
-		#print('tasks:',tasks)
-		#print('y',y)
+		print('tasks:',tasks)
+		print('y',y)
 		for h,t in enumerate(tasks):
 			#print('\n\n',h,'\n\n')
 			relevant_x = [x[i] for i in range(len(y)) if y[i] in t]
 			relevant_y = [y[i] for i in range(len(y)) if y[i] in t]
 			relevant_preds = [preds[i] for i in range(len(y)) if y[i] in t]
 
-			#print('relevant y',relevant_y)
-			#print(relevant_preds)
-			#print('task',t)
+			print('relevant y',relevant_y)
+			print(relevant_preds)
+			print('task',t)
 			#print(y)
 			
 			cl_metrics = clustering_metrics(relevant_x,relevant_y,relevant_preds)

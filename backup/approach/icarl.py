@@ -59,6 +59,14 @@ class Appr(Inc_Learning_Appr):
         # Task-Aware Multi-Head
         num_cls = self.model.task_cls[task]
         offset = self.model.task_offset[task]
+
+        if len(list(dists.shape)) == 1:
+                print('unsqueezed')
+                dists = dists.unsqueeze(0)
+        print(offset, num_cls)
+        print(dists.shape)
+        print(dists[:, offset:offset + num_cls].shape)
+
         pred = dists[:, offset:offset + num_cls].argmin(1)
         hits_taw = (pred + offset == targets.to(self.device)).float()
         # Task-Agnostic Multi-Head
@@ -142,6 +150,8 @@ class Appr(Inc_Learning_Appr):
             if t > 0:
                 outputs_old = self.model_old(images.to(self.device))
             # Forward current model
+            self.model.to(self.device)
+
             outputs = self.model(images.to(self.device))
             loss = self.criterion(t, outputs, targets.to(self.device), outputs_old)
             # Backward
@@ -153,6 +163,9 @@ class Appr(Inc_Learning_Appr):
     def eval(self, t, val_loader):
         """Contains the evaluation code"""
         with torch.no_grad():
+            all_outs = []
+            all_targets = []
+
             total_loss, total_acc_taw, total_acc_tag, total_num = 0, 0, 0, 0
             self.model.eval()
             for images, targets in val_loader:
@@ -168,12 +181,15 @@ class Appr(Inc_Learning_Appr):
                     hits_taw, hits_tag = self.calculate_metrics(outputs, targets)
                 else:
                     hits_taw, hits_tag = self.classify(t, feats, targets)
+                all_outs.append(outputs)
+                all_targets.append(targets)
+
                 # Log
                 total_loss += loss.item() * len(targets)
                 total_acc_taw += hits_taw.sum().item()
                 total_acc_tag += hits_tag.sum().item()
                 total_num += len(targets)
-        return total_loss / total_num, total_acc_taw / total_num, total_acc_tag / total_num
+        return total_loss / total_num, total_acc_taw / total_num, total_acc_tag / total_num, all_outs, all_targets
 
     # Algorithm 3: classification and distillation terms -- original formulation has no trade-off parameter (lamb=1)
     def criterion(self, t, outputs, targets, outputs_old=None):

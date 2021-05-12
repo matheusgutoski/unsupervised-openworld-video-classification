@@ -250,6 +250,117 @@ def args_inc(argv=None,r_seed = None):
 
 
 
+
+
+
+
+
+
+    '''
+    # GridSearch
+    if args.gridsearch_tasks > 0:
+        ft_kwargs = {**base_kwargs, **dict(logger=logger,
+                                           exemplars_dataset=GridSearch_ExemplarsDataset(transform, class_indices))}
+        appr_ft = Appr_finetuning(net, device, **ft_kwargs)
+        gridsearch = GridSearch(appr_ft, args.seed, gs_args.gridsearch_config, gs_args.gridsearch_acc_drop_thr,
+                                gs_args.gridsearch_hparam_decay, gs_args.gridsearch_max_num_searches)
+
+    # Loop tasks
+    print(taskcla)
+    acc_taw = np.zeros((max_task, max_task))
+    acc_tag = np.zeros((max_task, max_task))
+    forg_taw = np.zeros((max_task, max_task))
+    forg_tag = np.zeros((max_task, max_task))
+    for t, (_, ncla) in enumerate(taskcla):
+        # Early stop tasks if flag
+        if t >= max_task:
+            continue
+        print('*' * 108)
+        print('Task {:2d}'.format(t))
+        print('*' * 108)
+
+        # Add head for current task
+        net.add_head(taskcla[t][1])
+        net.to(device)
+
+        # GridSearch
+        if t < args.gridsearch_tasks:
+
+            # Search for best finetuning learning rate -- Maximal Plasticity Search
+            print('LR GridSearch')
+            best_ft_acc, best_ft_lr = gridsearch.search_lr(appr.model, t, trn_loader[t], val_loader[t])
+            # Apply to approach
+            appr.lr = best_ft_lr
+            gen_params = gridsearch.gs_config.get_params('general')
+            for k, v in gen_params.items():
+                if not isinstance(v, list):
+                    setattr(appr, k, v)
+
+            # Search for best forgetting/intransigence tradeoff -- Stability Decay
+            print('Trade-off GridSearch')
+            best_tradeoff, tradeoff_name = gridsearch.search_tradeoff(args.approach, appr,
+                                                                      t, trn_loader[t], val_loader[t], best_ft_acc)
+            # Apply to approach
+            if tradeoff_name is not None:
+                setattr(appr, tradeoff_name, best_tradeoff)
+
+            print('-' * 108)
+
+        # Train
+        appr.train(t, trn_loader[t], val_loader[t])
+        print('-' * 108)
+
+        # Test
+        for u in range(t + 1):
+            test_loss, acc_taw[t, u], acc_tag[t, u] = appr.eval(u, tst_loader[u])
+            if u < t:
+                forg_taw[t, u] = acc_taw[:t, u].max(0) - acc_taw[t, u]
+                forg_tag[t, u] = acc_tag[:t, u].max(0) - acc_tag[t, u]
+            print('>>> Test on task {:2d} : loss={:.3f} | TAw acc={:5.1f}%, forg={:5.1f}%'
+                  '| TAg acc={:5.1f}%, forg={:5.1f}% <<<'.format(u, test_loss,
+                                                                 100 * acc_taw[t, u], 100 * forg_taw[t, u],
+                                                                 100 * acc_tag[t, u], 100 * forg_tag[t, u]))
+            logger.log_scalar(task=t, iter=u, name='loss', group='test', value=test_loss)
+            logger.log_scalar(task=t, iter=u, name='acc_taw', group='test', value=100 * acc_taw[t, u])
+            logger.log_scalar(task=t, iter=u, name='acc_tag', group='test', value=100 * acc_tag[t, u])
+            logger.log_scalar(task=t, iter=u, name='forg_taw', group='test', value=100 * forg_taw[t, u])
+            logger.log_scalar(task=t, iter=u, name='forg_tag', group='test', value=100 * forg_tag[t, u])
+
+        # Save
+        print('Save at ' + os.path.join(args.results_path, full_exp_name))
+        logger.log_result(acc_taw, name="acc_taw", step=t)
+        logger.log_result(acc_tag, name="acc_tag", step=t)
+        logger.log_result(forg_taw, name="forg_taw", step=t)
+        logger.log_result(forg_tag, name="forg_tag", step=t)
+        logger.save_model(net.state_dict(), task=t)
+        logger.log_result(acc_taw.sum(1) / np.tril(np.ones(acc_taw.shape[0])).sum(1), name="avg_accs_taw", step=t)
+        logger.log_result(acc_tag.sum(1) / np.tril(np.ones(acc_tag.shape[0])).sum(1), name="avg_accs_tag", step=t)
+        aux = np.tril(np.repeat([[tdata[1] for tdata in taskcla[:max_task]]], max_task, axis=0))
+        logger.log_result((acc_taw * aux).sum(1) / aux.sum(1), name="wavg_accs_taw", step=t)
+        logger.log_result((acc_tag * aux).sum(1) / aux.sum(1), name="wavg_accs_tag", step=t)
+
+        # Last layer analysis
+        if args.last_layer_analysis:
+            weights, biases = last_layer_analysis(net.heads, t, taskcla, y_lim=True)
+            logger.log_figure(name='weights', iter=t, figure=weights)
+            logger.log_figure(name='bias', iter=t, figure=biases)
+
+            # Output sorted weights and biases
+            weights, biases = last_layer_analysis(net.heads, t, taskcla, y_lim=True, sort_weights=True)
+            logger.log_figure(name='weights', iter=t, figure=weights)
+            logger.log_figure(name='bias', iter=t, figure=biases)
+    # Print Summary
+    utils_.print_summary(acc_taw, acc_tag, forg_taw, forg_tag)
+    print('[Elapsed time = {:.1f} h]'.format((time.time() - tstart) / (60 * 60)))
+    print('Done!')
+
+    return acc_taw, acc_tag, forg_taw, forg_tag, logger.exp_path
+    ####################################################################################################################
+    '''
+
+
+
+
 if __name__ == '__main__':
 
 
@@ -280,8 +391,7 @@ if __name__ == '__main__':
 	parser.add_argument('--seed', help='Random seed. 123450 sets seed to random', type=int, default = 5)
 	parser.add_argument('--gpu', help='gpu id', type=int)
 	parser.add_argument('--expid', help='exp id', type=str)
-	parser.add_argument('--approach', help='which incremental model to use', type=str)
-	parser.add_argument('--nepochs', default=30, type=int, required=False, help='Number of epochs per training session (default=%(default)s)')
+	parser.add_argument('--incremental_model', help='which incremental model to use', type=str)
 
 
 	args = parser.parse_args()
@@ -344,7 +454,7 @@ if __name__ == '__main__':
 	params['incremental_evm'] = args.incremental_evm
 	params['ti3d_type'] = args.ti3d_type
 
-	params['approach'] = args.approach
+	params['incremental_model'] = args.incremental_model
 	#get filenames
 	filenames = gen.get_filenames()	
 	all_categories = gen.get_all_categories(filenames)
@@ -543,22 +653,42 @@ if __name__ == '__main__':
 		for t,tl in zip(new_train, new_train_labels):
 			data[this_task]['trn']['x'].append(t)
 			data[this_task]['trn']['y'].append(seq_dict_map[tl])
-			data[this_task]['val']['x'].append(t) # fix later
-			data[this_task]['val']['y'].append(seq_dict_map[tl])
+			
 
 		for t,tl in zip(new_test, new_test_labels):
 
 			data[this_task]['tst']['x'].append(t)
 			data[this_task]['tst']['y'].append(seq_dict_map[tl])
 
-			
+			data[this_task]['val']['x'].append(t) # fix later
+			data[this_task]['val']['y'].append(seq_dict_map[tl])
 
 
 
-		
+		'''
+		#dummy_data = np.zeros((1024))
+		for a in range(200):
+			if this_task == 0:
+				low = 0
+				high = 11 # up to but no including
+			else:
+				low = 10*this_task + 1
+				high = low + 10
+			dummy_label = np.random.randint(low, high)
+
+			data[this_task]['trn']['x'].append(dummy_data)
+			data[this_task]['trn']['y'].append(dummy_label)
+
+			data[this_task]['tst']['x'].append(dummy_data)
+			data[this_task]['tst']['y'].append(dummy_label)
+
+			data[this_task]['val']['x'].append(dummy_data)
+			data[this_task]['val']['y'].append(dummy_label)
+		'''
 
 
-		
+
+		#input('eae')
 	for tt in range(n_tasks):
 		data[tt]['ncla'] = len(np.unique(data[tt]['trn']['y']))
 
@@ -626,7 +756,7 @@ if __name__ == '__main__':
 	params['openness'] = 0
 
 
-	params['model_type'] = params['approach']
+	params['model_type'] = params['incremental_model']
 	# classify i3d model data with incremental classifier and get classification metrics
 
 
@@ -724,4 +854,205 @@ if __name__ == '__main__':
 
 
 
+
+
+	
+	#pred = clf.predict(evms_triplet, test_features, params)
+	pred = np.zeros((test_features.shape[0]))
+	print(len(open_y_test), len(pred))
+	evaluation.single_evaluation_openset(open_y_test,pred,params)
+	evaluation.single_evaluation_clustering(test_features,open_y_test,pred, params)
+
+	dict = {}
+	dict['x'] = test_features.copy()
+	dict['y'] = open_y_test.copy()
+	dict['preds'] = pred.copy()
+	dict['tasks'] = [int_initial_classes.copy()]
+	all_results.append(dict.copy())
+	
+	#end phase 1
+
+	input('end p 1')
+
+
+
+
+
+
+
+
+
+
+
+
+
+	#phase 2					 				-----------------------
+	
+	while total_classes < 101:
+		params['iteration'] += 1
+		#select z new classes
+
+		new_n_classes = np.random.randint(params['min_classes'],params['max_classes'])
+		new_classes = class_shuffle[total_classes:total_classes + new_n_classes]
+		total_classes += new_n_classes
+		print('new selected classes:',new_classes)
+		#new data
+
+		
+		new_train = []
+		new_train_labels = []
+		new_test = []
+		new_test_labels = []
+
+		for t, tl in zip(train, train_labels):
+			if tl in new_classes:
+				new_train.append(t)
+				new_train_labels.append(tl)
+
+		for t, tl in zip(test, test_labels):
+			if tl in new_classes:
+				new_test.append(t)
+				new_test_labels.append(tl)
+
+		int_new_train_labels = utils.convert_labels_to_int(new_train_labels, dict_map)
+		int_new_test_labels = utils.convert_labels_to_int(new_test_labels, dict_map)
+
+
+		#extract features
+
+		all_categories_new_train = gen.get_all_categories(new_train)
+		all_categories_new_test = gen.get_all_categories(new_test)
+
+		dict_map_new_train = utils.map_labels(all_categories_new_train)
+		dict_map_new_test = utils.map_labels(all_categories_new_test)
+
+	
+		try:
+			params['model_type'] = 'cnn'
+			new_train_features, new_test_features, int_new_train_labels, int_new_test_labels = utils.load_features(params, prefix = 'phase_2')
+			#print(np.unique(int_new_test_labels))
+			
+
+		except Exception as e:
+			print(e)
+			params['model_type'] = 'cnn'
+			new_train_features = finetune_i3d.extract_features_single(model_weights, new_train, new_train_labels, dict_map_new_train, params, len(np.unique(initial_train_labels)))
+			new_test_features = finetune_i3d.extract_features_single(model_weights, new_test, new_test_labels, dict_map_new_test, params, len(np.unique(initial_train_labels)))
+			utils.save_features(new_train_features, new_test_features, int_new_train_labels, int_new_test_labels, int_new_test_labels , params, prefix='phase_2')
+			
+		train_i3d_features.append(new_train_features)
+		test_i3d_features.append(new_test_features)
+		train_i3d_labels.append(int_new_train_labels)
+		test_i3d_labels.append(int_new_test_labels)
+
+		
+
+
+
+		#get rejected set (train)
+		if params['ignore_errors'] == True:
+			rejected_set_features_i3d = np.array(new_train_features)
+			rejected_set_labels = np.array(int_new_train_labels)
+		else:
+			raise Exception		
+
+		
+
+
+		#get all known classes	
+		known_classes = np.concatenate(class_history).ravel()
+		int_known_classes = utils.convert_labels_to_int(known_classes, dict_map)
+	
+
+		flattened_test_i3d_features, flattened_test_i3d_labels = np.concatenate(test_i3d_features), np.concatenate(test_i3d_labels)
+		flattened_train_i3d_features, flattened_train_i3d_labels = np.concatenate(train_i3d_features), np.concatenate(train_i3d_labels)
+
+		full_test_labels = flattened_test_i3d_labels.copy()
+		full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
+
+
+		class_history.append(new_classes)
+		int_class_history.append(utils.convert_labels_to_int(new_classes, dict_map))
+
+		print(int_class_history)
+		print(np.unique(full_test_labels))
+		print('int class his:',int_class_history)
+		print('full_open_test_labels', full_open_test_labels)
+		print('full test labels', full_test_labels)
+
+		input('end p 2')
+
+
+		#end phase 2
+
+
+
+
+
+		#phase 3								-----------------------
+		
+		#estimate number of clusters in the rejected set
+
+		top_k = 5
+		estimated_k, gaps = k_estimator.estimate_dendrogap(rejected_set_features_i3d,top_k, normalize_data = True)
+		estimated_k = k_estimator.best_silhouette(rejected_set_features_i3d, estimated_k, metric = 'cosine')
+		print('estimated k:',estimated_k)
+		print('true k', len(np.unique(rejected_set_labels)))
+
+		#cluster with hierarchical agglomerative ward clustering
+
+
+		#perform hierarchical
+		print('Performing hierarchical clustering with ward linkage')
+		#get rejected set labels 
+
+
+		if params['ignore_errors'] == True:
+			hierarchical_preds = rejected_set_labels
+		else:
+			hierarchical_preds = hierarchical.hierarchical(rejected_set_features_i3d, n_clusters = estimated_k, affinity = 'euclidean', linkage = 'ward', distance_threshold= None, normalize_data = True)
+		
+		#assign labels
+		hierarchical_preds = ['new_class_'+str(x)+'_iter_'+str(params['iteration']) for x in hierarchical_preds ]
+
+		#evaluate clustering performance
+		params['model_type'] = 'phase_3'
+		evaluation.single_evaluation_clustering(rejected_set_features_i3d,rejected_set_labels,hierarchical_preds, params)
+
+		#end phase 3
+
+		
+
+
+
+
+
+
+		#phase 4								------------------------
+	
+		params['model_type'] = 'phase_4_incremental_ti3d_incremental_evm_tail_'+str(params['tail_size'])+'_online'
+
+
+		print('phase 4 clf predict')
+		#clf.train(flattened_train_i3d_features, flattened_train_i3d_labels)
+		#preds = clf.predict(flattened_test_i3d_features, params)
+		preds = np.zeros((flattened_test_i3d_features.shape[0]))
+
+		evaluation.single_evaluation_clustering(flattened_test_i3d_features,full_test_labels,preds, params)
+
+
+		dict = {}
+		dict['x'] = flattened_train_i3d_features.copy()
+		dict['y'] = full_test_labels.copy()
+		dict['preds'] = preds.copy()
+		dict['tasks'] = int_class_history.copy()
+		all_results.append(dict.copy())
+
+
+		forgetting, full_evaluation = evaluation.full_evaluation(all_results, params)
+
+		utils.save_full_report(forgetting, full_evaluation, params)
+		utils.save_predictions(preds, full_test_labels, params, cm=True)
+
+		input('end of loop')
 

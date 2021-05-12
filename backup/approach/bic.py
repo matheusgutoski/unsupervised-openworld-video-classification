@@ -61,7 +61,7 @@ class Appr(Inc_Learning_Appr):
         parser.add_argument('--val-exemplar-percentage', default=0.1, type=float, required=False,
                             help='Percentage of exemplars that will be used for validation (default=%(default)s)')
         # In the original code they define epochs_per_eval=100 and epoch_val_times=2, making a total of 200 bias epochs
-        parser.add_argument('--num-bias-epochs', default=10, type=int, required=False,
+        parser.add_argument('--num-bias-epochs', default=30, type=int, required=False,
                             help='Number of epochs for training bias (default=%(default)s)')
         return parser.parse_known_args(args)
 
@@ -115,7 +115,7 @@ class Appr(Inc_Learning_Appr):
             self.y_valid_exemplars.append([])
             # get all indices from current class
             cls_ind = np.where(np.asarray(trn_loader.dataset.labels) == curr_cls)[0]
-            #print(trn_loader.dataset.labels)
+            print(np.unique(trn_loader.dataset.labels))
             assert (len(cls_ind) > 0), "No samples to choose from for class {:d}".format(curr_cls)
             assert (num_val_ex_cls <= len(cls_ind)), "Not enough samples to store for class {:d}".format(curr_cls)
             # add samples to the exemplar list
@@ -240,7 +240,7 @@ class Appr(Inc_Learning_Appr):
             all_outs = []
             all_targets = []
             for images, targets in val_loader:
-                print(len(images))
+                #print(len(images))
                 # Forward old model
                 targets_old = None
                 if t > 0:
