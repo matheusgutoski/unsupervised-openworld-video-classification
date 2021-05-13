@@ -133,6 +133,8 @@ class StudentTrainer(Inc_Learning_Appr):
         if self.fix_bn and t > 0:
             self.model.freeze_bn()
         for images, targets in trn_loader:
+            self.model.to(self.device)
+
             images, targets = images.cuda(), targets.cuda()
             # Forward old and new model
             targets_old = self.model_old(images)
@@ -149,6 +151,9 @@ class StudentTrainer(Inc_Learning_Appr):
     # Contains the evaluation code for evaluating the student
     def eval(self, t, val_loader):
         with torch.no_grad():
+            all_outs = []
+            all_targets = []
+
             total_loss, total_acc_taw, total_acc_tag, total_num = 0, 0, 0, 0
             self.model.eval()
             for images, targets in val_loader:
@@ -158,11 +163,14 @@ class StudentTrainer(Inc_Learning_Appr):
                 targets_new = self.model_new(images)
                 # Forward current model
                 outputs = self.model(images)
+                all_outs.append(outputs)
+                all_targets.append(targets_new)
+
                 loss = self.criterion(t, outputs, targets_old, targets_new)
                 # Log
                 total_loss += loss.item() * len(targets)
                 total_num += len(targets)
-        return total_loss / total_num, -1, -1
+        return total_loss / total_num, -1, -1, all_outs, all_targets
 
     # Returns the loss value for the student
     def criterion(self, t, outputs, targets_old, targets_new=None):

@@ -84,10 +84,15 @@ class Appr(Inc_Learning_Appr):
             self.model.freeze_bn()
         for images, targets in trn_loader:
             # Forward old model
+
             targets_old = None
             if t > 0:
+                self.model_old.to(self.device)
+
                 targets_old = self.model_old(images.to(self.device))
             # Forward current model
+            self.model.to(self.device)
+
             outputs = self.model(images.to(self.device))
             loss = self.criterion(t, outputs, targets.to(self.device), targets_old)
             # Backward
@@ -99,6 +104,9 @@ class Appr(Inc_Learning_Appr):
     def eval(self, t, val_loader):
         """Contains the evaluation code"""
         with torch.no_grad():
+            all_outs = []
+            all_targets = []
+
             total_loss, total_acc_taw, total_acc_tag, total_num = 0, 0, 0, 0
             self.model.eval()
             for images, targets in val_loader:
@@ -110,12 +118,15 @@ class Appr(Inc_Learning_Appr):
                 outputs = self.model(images.to(self.device))
                 loss = self.criterion(t, outputs, targets.to(self.device), targets_old)
                 hits_taw, hits_tag = self.calculate_metrics(outputs, targets)
+                all_outs.append(outputs)
+                all_targets.append(targets)
+
                 # Log
                 total_loss += loss.data.cpu().numpy().item() * len(targets)
                 total_acc_taw += hits_taw.sum().data.cpu().numpy().item()
                 total_acc_tag += hits_tag.sum().data.cpu().numpy().item()
                 total_num += len(targets)
-        return total_loss / total_num, total_acc_taw / total_num, total_acc_tag / total_num
+        return total_loss / total_num, total_acc_taw / total_num, total_acc_tag / total_num, all_outs, all_targets
 
     def cross_entropy(self, outputs, targets, exp=1.0, size_average=True, eps=1e-5):
         """Calculates cross-entropy with temperature scaling"""

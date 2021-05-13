@@ -93,6 +93,8 @@ class Appr(Inc_Learning_Appr):
         if self.fix_bn and t > 0:
             self.model.freeze_bn()
         for images, targets in trn_loader:
+            self.model.to(self.device)
+
             # store current model without heads
             curr_feat_ext = {n: p.clone().detach() for n, p in self.model.model.named_parameters() if p.requires_grad}
 

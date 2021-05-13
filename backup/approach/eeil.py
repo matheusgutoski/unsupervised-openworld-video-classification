@@ -137,6 +137,8 @@ class Appr(Inc_Learning_Appr):
             self.model.freeze_bn()
         for images, targets in trn_loader:
             images = images.to(self.device)
+            self.model.to(self.device)
+
             # Forward old model
             outputs_old = None
             if t > 0:

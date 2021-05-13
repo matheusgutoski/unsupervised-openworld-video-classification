@@ -183,11 +183,16 @@ class Inc_Learning_Appr:
     def eval(self, t, val_loader):
         """Contains the evaluation code"""
         with torch.no_grad():
+            all_outs = []
+            all_targets = []
+
             total_loss, total_acc_taw, total_acc_tag, total_num = 0, 0, 0, 0
             self.model.eval()
             for images, targets in val_loader:
                 # Forward current model
                 outputs = self.model(images.to(self.device))
+                all_outs.append(outputs)
+                all_targets.append(targets)
                 loss = self.criterion(t, outputs, targets.to(self.device))
                 hits_taw, hits_tag = self.calculate_metrics(outputs, targets)
                 # Log
@@ -195,7 +200,8 @@ class Inc_Learning_Appr:
                 total_acc_taw += hits_taw.sum().item()
                 total_acc_tag += hits_tag.sum().item()
                 total_num += len(targets)
-        return total_loss / total_num, total_acc_taw / total_num, total_acc_tag / total_num
+        return total_loss / total_num, total_acc_taw / total_num, total_acc_tag / total_num, all_outs, all_targets
+
 
     def calculate_metrics(self, outputs, targets):
         """Contains the main Task-Aware and Task-Agnostic metrics"""

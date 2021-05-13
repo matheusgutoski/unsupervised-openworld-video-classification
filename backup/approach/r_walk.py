@@ -164,6 +164,7 @@ class Appr(Inc_Learning_Appr):
         for images, targets in trn_loader:
             # store current model
             curr_feat_ext = {n: p.clone().detach() for n, p in self.model.model.named_parameters() if p.requires_grad}
+            self.model.to(self.device)
 
             # Forward current model
             outputs = self.model(images.to(self.device))
