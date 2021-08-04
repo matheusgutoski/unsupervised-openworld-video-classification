@@ -384,6 +384,10 @@ def plot_confusion_matrix(preds,y,output_path):
 	from sklearn.metrics import confusion_matrix
 	import seaborn as sn
 	
+	font = {'size'   : 32}
+
+	matplotlib.rc('font', **font)
+
 	preds = [str(x).split('_')[2] if '_' in str(x) else str(x) for x in preds].copy()
 	y = [str(x) for x in y].copy()
 
@@ -395,14 +399,69 @@ def plot_confusion_matrix(preds,y,output_path):
 
 			
 	cm = confusion_matrix(y,preds, labels = order, normalize = 'true')
-	
-	plt.figure(figsize=(20,20))
-	plt.title('confusion matrix')
-	sn.heatmap(cm,annot=True)
-	plt.savefig(output_path+'confusion_matrix.png')
+	fig = plt.figure(figsize=(20,20))
+	sn.heatmap(cm,annot=False, square=True, cbar_kws={"shrink": .8}, cmap='bwr')
+	plt.yticks(rotation=0) 
+	plt.ylabel("True", fontsize=32, rotation=90)
+	plt.xlabel("Predicted", fontsize=32, rotation=0)
+
+	fig.savefig(output_path+'confusion_matrix.png')
 	plt.close()
 
 	#input('??')
+
+
+def plot_confusion_matrix_bars(preds,y,output_path):
+	import matplotlib
+	matplotlib.use('agg')
+	import matplotlib.pyplot as plt
+	from sklearn.metrics import confusion_matrix
+	import seaborn as sn
+	
+	font = {'size'   : 52, 'family': 'arial'}
+
+	matplotlib.rc('font', **font)
+
+	preds = [str(x).split('_')[2] if '_' in str(x) else str(x) for x in preds].copy()
+	y = [str(x) for x in y].copy()
+
+	#this inserts unknowns in the cm
+	
+	order = list(dict.fromkeys(y))
+
+			
+	cm = confusion_matrix(y,preds, labels = order, normalize = 'true')
+	diag = np.diagonal(cm)*100.
+	print(cm, diag, cm.shape, diag.shape)
+
+
+
+
+
+	from sklearn.linear_model import Ridge
+
+	
+	lr = Ridge()
+	diag2=diag.copy().reshape(-1,1)
+	x = np.array(range(101)).reshape(-1,1)
+	lr.fit(x, diag2)
+	
+
+	#input('jeje')
+	fig = plt.figure(figsize=(20,20))
+	plt.bar(range(1,102), diag, width = 0.7)
+	plt.plot(x, lr.coef_*x+lr.intercept_, color='red', linewidth = 8, alpha = 0.8, linestyle = 'solid')
+	#plt.yticks(rotation=0) 
+	plt.xticks(np.arange(1,102,step=10))
+
+	plt.ylabel("True Positive (%)", fontsize=52, rotation=90)
+	plt.xlabel("Class", fontsize=52, rotation=0)
+
+	fig.savefig(output_path+'confusion_matrix_bars.png')
+	plt.close()
+
+	#input('??')
+
 
 
 def save_predictions(preds, y, params, cm=True, prefix = ''):
@@ -418,8 +477,10 @@ def save_predictions(preds, y, params, cm=True, prefix = ''):
         makedirs(output_path)
 
         preds = np.array(preds)
+        y = np.array(y)
         np.save(output_path + prefix + 'preds.npy', preds)
-        
+        np.save(output_path + prefix + 'phase_4_y_test.npy', y)
+
         if cm:
                 plot_confusion_matrix(preds,y,output_path)
 

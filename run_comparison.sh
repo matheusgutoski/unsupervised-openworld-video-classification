@@ -1,19 +1,15 @@
-#python facil.py --gpu 1 --seed 5 --approach bic;
-#python facil.py --gpu 1 --seed 6 --approach bic;
-#python facil.py --gpu 1 --seed 7 --approach bic;
-#python facil.py --gpu 1 --seed 8 --approach bic;
-#python facil.py --gpu 1 --seed 9 --approach bic;
+python facil.py --gpu 1 --seed 5 --approach bic;
+python facil.py --gpu 1 --seed 6 --approach bic;
+python facil.py --gpu 1 --seed 7 --approach bic;
+python facil.py --gpu 1 --seed 8 --approach bic;
+python facil.py --gpu 1 --seed 9 --approach bic;
 
 
-#python facil.py --gpu 1 --seed 5 --approach icarl;
-#python facil.py --gpu 1 --seed 6 --approach icarl;
-#python facil.py --gpu 1 --seed 7 --approach icarl;
-#python facil.py --gpu 1 --seed 8 --approach icarl;
-#python facil.py --gpu 1 --seed 9 --approach icarl;
-
-
-#fail python facil.py --gpu 1 --seed 5 --approach dmc --nepochs 1;
-#fail python facil.py --gpu 1 --seed 5 --approach lwm --nepochs 1;
+python facil.py --gpu 1 --seed 5 --approach icarl;
+python facil.py --gpu 1 --seed 6 --approach icarl;
+python facil.py --gpu 1 --seed 7 --approach icarl;
+python facil.py --gpu 1 --seed 8 --approach icarl;
+python facil.py --gpu 1 --seed 9 --approach icarl;
 
 
 python facil.py --gpu 1 --seed 5 --approach eeil ;
