@@ -1,6 +1,6 @@
 import numpy as np
-import generator as gen
-import finetune_i3d 
+import generator_hmdb51 as gen
+import finetune_i3d_hmdb51 
 import utils
 import os
 import argparse
@@ -127,6 +127,7 @@ def args_inc(argv=None,r_seed = None):
 
     parser.add_argument('--initial_n_classes', help='How many initial classes?', type=int, default = 11)
     parser.add_argument('--incremental_n_classes', help='How many classes at each step?', type=int, default = 10)
+    parser.add_argument('--list_id', help='Video list id?', type=int, default = 0)
 
 
     # Args -- Incremental Learning Framework
@@ -280,7 +281,7 @@ if __name__ == '__main__':
 	parser.add_argument('--tail_size', help='weibull tail size for evm. If < 1, uses ratio of data instead', type=float, default = 10)
 	parser.add_argument('--cover_threshold', help='evm cover threshold', type=float, default = 0.1)
 	parser.add_argument('--classification_threshold', help='probability threshold for accepting points in evm', type=float, default = 0.001)
-	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'comparison_results_review/')
+	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'comparison_results_review_hmdb51/')
 	parser.add_argument('--ti3d_type', help='ti3d type', type=str, default = 'incremental', choices = ['incremental', 'gold', 'fixed'])
 	parser.add_argument('--online', help='train ti3d in 1 epoch', action='store_true')
 	parser.add_argument('--incremental_evm', help='use incremental evm instead of gold standard', action='store_true')
@@ -357,14 +358,26 @@ if __name__ == '__main__':
 
 	params['approach'] = args.approach
 	#get filenames
-	filenames = gen.get_filenames()	
+
+	PATH_TO_SPLITS = '/home/users/matheus/doutorado/i3d/keras-kinetics-i3d/data/hmdb51/test_train_splits/'
+	if params['list_id']==1:
+		train_file = 'split_1_train.txt'
+		test_file = 'split_1_test.txt'
+	if params['list_id']==2:
+		train_file = 'split_2_train.txt'
+		test_file = 'split_2_test.txt'
+	if params['list_id']==3:
+		train_file = 'split_3_train.txt'
+		test_file = 'split_3_test.txt'
+
+
+	filenames = gen.get_filenames(PATH_TO_SPLITS,train_file)	
 	all_categories = gen.get_all_categories(filenames)
 	dict_map = utils.map_labels(all_categories)
 
 	#get class list
-	unique_classes = np.unique([x.split('/')[0] for x in filenames]).tolist()
+	unique_classes = all_categories
 	
-	PATH_TO_FRAMES = '/home/users/datasets/UCF-101_opticalflow/'
 
 
 	train_i3d_features = []
@@ -389,7 +402,7 @@ if __name__ == '__main__':
 
 	#perform train/test split
 
-	train, train_labels, test, test_labels = utils.train_test_split_groups(filenames, unique_classes, params)
+	train, train_labels, test, test_labels = utils.train_test_split_hmdb51(PATH_TO_SPLITS,train_file, test_file, unique_classes, params)
 	print(len(train_labels), len(test_labels), len(train_labels) + len(test_labels))
 	#input('??')
 	int_train_labels = utils.convert_labels_to_int(train_labels, dict_map)
@@ -463,9 +476,9 @@ if __name__ == '__main__':
 	except Exception as e:
 		#input('?'+str(e))
 		params['model_type'] = 'cnn'
-		model, hist_cnn, model_weights = finetune_i3d.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
+		model, hist_cnn, model_weights = finetune_i3d_hmdb51.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
 		utils.save_i3d_model(model, model_weights, params) #very expensive storage
-		train_features, test_features = finetune_i3d.extract_features(model_weights, train,  initial_train_labels, test,  test_labels, dict_map_test_fold_full, params)
+		train_features, test_features = finetune_i3d_hmdb51.extract_features(model_weights, train,  initial_train_labels, test,  test_labels, dict_map_test_fold_full, params)
 		utils.save_features(train_features, test_features, int_train_labels, int_test_labels, int_test_labels , params)
 	print(train_features.shape, test_features.shape)
 
@@ -474,13 +487,13 @@ if __name__ == '__main__':
 	task_classes = {}
 	
 	n_classes_per_task = params['incremental_n_classes']
-	total_classes = 101
+	total_classes = 51
 	n_tasks = int(np.floor(total_classes/n_classes_per_task))
 
 	int_class_shuffle = utils.convert_labels_to_int(class_shuffle,dict_map)
 
 	seq_dict_map = {}
-	for i in range(101):
+	for i in range(51):
 		seq_dict_map[int_class_shuffle[i]] = i 
 
 
@@ -578,7 +591,7 @@ if __name__ == '__main__':
 	for tt in data.keys():
 		for split in ['trn', 'val', 'tst']:
 			data[tt][split]['x'] = np.asarray(data[tt][split]['x'])
-			print(data[tt][split]['x'].shape, tt)
+			print('593',data[tt][split]['x'].shape, tt)
 	# other
 	n = 0
 	taskcla = []

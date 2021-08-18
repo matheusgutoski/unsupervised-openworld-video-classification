@@ -11,6 +11,17 @@
 
 
 
+python main.py --gpu 1 --seed 5 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.99;
+#python main.py --gpu 1 --seed 6 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.99;
+#python main.py --gpu 1 --seed 7 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.99;
+#python main.py --gpu 1 --seed 8 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.99;
+#python main.py --gpu 1 --seed 9 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.99;
+
+
+
+
+
+
 #python main.py --gpu 1 --seed 5 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.75;
 #python main.py --gpu 1 --seed 6 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.75;
 #python main.py --gpu 1 --seed 7 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.75;
@@ -32,11 +43,11 @@
 #python main.py --gpu 1 --seed 9 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 0.5;
 
 
-python main.py --gpu 1 --seed 5 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
-python main.py --gpu 1 --seed 6 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
-python main.py --gpu 1 --seed 7 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
-python main.py --gpu 1 --seed 8 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
-python main.py --gpu 1 --seed 9 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
+#python main.py --gpu 1 --seed 5 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
+#python main.py --gpu 1 --seed 6 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
+#python main.py --gpu 1 --seed 7 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
+#python main.py --gpu 1 --seed 8 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
+#python main.py --gpu 1 --seed 9 --ti3d_type=incremental --online --incremental_evm --tail_size 0.2 --cover_threshold 1;
 
 
 

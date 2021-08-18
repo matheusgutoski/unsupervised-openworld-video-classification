@@ -148,6 +148,7 @@ def increment_evm(extreme_vectors, extreme_vectors_labels, new_train_features, n
 	for cl in np.unique(new_train_labels): # train one evm for each extreme vector class
 		print ('training evm for new class', cl)
 		#separate the positive class from the rest
+
 		positives = [x for i,x in enumerate(new_train_features) if new_train_labels[i] == cl]
 		negatives = [x for i,x in enumerate(new_train_features) if new_train_labels[i] != cl]
 

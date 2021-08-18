@@ -239,9 +239,15 @@ def single_evaluation_openset(y,pred,params):
 	import utils
 	import re
 
+	#print()
+	#print('y:',y)
+	#print('pred:',pred)
 	y = [int(re.search(r'\d+', str(x)).group()) for x in y]
 	pred = [int(re.search(r'\d+', str(x)).group()) for x in pred]
-
+	#print()
+	#print('y:',y)
+	#print('pred:',pred)
+	#print()
 	
 	classif_rep, cm = metrics.classif_report(y, pred)
 	youdens_index = metrics.youdens_index(y, pred)

@@ -4,7 +4,7 @@ import numpy as np
 
 def train_test_split_groups(filenames, initial_classes, params):
 	videos = [x.split('.')[0] for x in filenames if x.split('/')[0] in initial_classes]
-	print(videos)
+	#print(videos)
 
 	merged_list = [] #this list is for merging groups of the same class so that we can use sklearns train_test_split method. Each element in the list is a group of videos that belong to the same class and group
 	for cl in initial_classes:
@@ -43,6 +43,18 @@ def train_test_split_groups(filenames, initial_classes, params):
 
 	
 	
+	return train, train_labels, test, test_labels
+
+
+def train_test_split_hmdb51(PATH_TO_SPLITS,train_file, test_file, unique_classes, params):
+	with open(PATH_TO_SPLITS+train_file) as f:
+		train = [line.rstrip().split('.')[0] for line in f]
+		train_labels = [line.split('/')[0] for line in train]
+		print(train_labels,train[-1])
+	with open(PATH_TO_SPLITS+test_file) as f:
+		test = [line.rstrip().split('.')[0] for line in f]
+		test_labels = [line.split('/')[0] for line in test]
+
 	return train, train_labels, test, test_labels
 
 def map_labels(classes):

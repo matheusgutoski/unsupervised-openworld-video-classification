@@ -1,6 +1,6 @@
 import numpy as np
-import generator as gen
-import finetune_i3d 
+import generator_hmdb51 as gen
+import finetune_i3d_hmdb51 
 import utils
 import os
 import argparse
@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--model', help='Use which model?', type=str, choices=['kinetics','ucf101'], default = 'ucf101')
-	parser.add_argument('--list_id', help='Video list id?', type=int, default = 0)
+	parser.add_argument('--list_id', help='Video list id?', type=int, default = 1)
 	parser.add_argument('--n_train_classes', help='How many classes at training time?', type=int, default = 2)
 	parser.add_argument('--n_test_classes', help='How many classes at test time?', type=int, default = 3)
 	parser.add_argument('--initial_n_classes', help='How many initial classes?', type=int, default = 11)
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 	parser.add_argument('--tail_size', help='weibull tail size for evm. If < 1, uses ratio of data instead', type=float, default = 10)
 	parser.add_argument('--cover_threshold', help='evm cover threshold', type=float, default = 0.1)
 	parser.add_argument('--classification_threshold', help='probability threshold for accepting points in evm', type=float, default = 0.001)
-	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'incremental_review_results/')
+	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'incremental_review_results_hmdb51/')
 	parser.add_argument('--ti3d_type', help='ti3d type', type=str, default = 'incremental', choices = ['incremental', 'gold', 'fixed'])
 	parser.add_argument('--online', help='train ti3d in 1 epoch', action='store_true')
 	parser.add_argument('--incremental_evm', help='use incremental evm instead of gold standard', action='store_true')
@@ -107,18 +107,27 @@ if __name__ == '__main__':
 	params['incremental_n_classes'] = args.incremental_n_classes
 
 	#get filenames
-	filenames = gen.get_filenames()	
-	print(len(filenames))
-	all_categories = gen.get_all_categories(filenames)
-	print(all_categories,len(all_categories))
-	
+	PATH_TO_SPLITS = '/home/users/matheus/doutorado/i3d/keras-kinetics-i3d/data/hmdb51/test_train_splits/'
+	if params['list_id']==1:
+		train_file = 'split_1_train.txt'
+		test_file = 'split_1_test.txt'
+	if params['list_id']==2:
+		train_file = 'split_2_train.txt'
+		test_file = 'split_2_test.txt'
+	if params['list_id']==3:
+		train_file = 'split_3_train.txt'
+		test_file = 'split_3_test.txt'
 
+
+	filenames = gen.get_filenames(PATH_TO_SPLITS,train_file)	
+	all_categories = gen.get_all_categories(filenames)
 	dict_map = utils.map_labels(all_categories)
 
-	#get class list
-	unique_classes = np.unique([x.split('/')[0] for x in filenames]).tolist()
-	PATH_TO_FRAMES = '/home/users/datasets/UCF-101_opticalflow/'
 
+	#get class list
+	unique_classes = all_categories
+	
+	print(unique_classes)
 
 	train_i3d_features = []
 	train_i3d_labels = []
@@ -141,13 +150,13 @@ if __name__ == '__main__':
 
 	#perform train/test split
 
-	train, train_labels, test, test_labels = utils.train_test_split_groups(filenames, unique_classes, params)
-	#print(len(train_labels), len(test_labels), len(train_labels) + len(test_labels))
-	print(train)
-	input('??')
+	train, train_labels, test, test_labels = utils.train_test_split_hmdb51(PATH_TO_SPLITS,train_file, test_file, unique_classes, params)
+	print(len(train_labels), len(test_labels), len(train_labels) + len(test_labels))
+	
 	int_train_labels = utils.convert_labels_to_int(train_labels, dict_map)
 	int_test_labels = utils.convert_labels_to_int(test_labels, dict_map)
-
+	print(int_train_labels,int_test_labels)
+	
 	
 
 	#select initial classes
@@ -204,7 +213,6 @@ if __name__ == '__main__':
 
 
 
-
 	try:
 		params['model_type'] = 'cnn'
 		model, model_weights = utils.load_i3d_model(params,initial_n_classes)
@@ -212,9 +220,9 @@ if __name__ == '__main__':
 	except Exception as e:
 		#input('?'+str(e))
 		params['model_type'] = 'cnn'
-		model, hist_cnn, model_weights = finetune_i3d.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
+		model, hist_cnn, model_weights = finetune_i3d_hmdb51.finetune(initial_train, int_initial_train_labels, dict_map_train_fold, params)
 		utils.save_i3d_model(model, model_weights, params) #very expensive storage
-		train_features, test_features = finetune_i3d.extract_features(model_weights, initial_train, initial_train_labels, initial_test, initial_test_labels, dict_map_test_fold, params)
+		train_features, test_features = finetune_i3d_hmdb51.extract_features(model_weights, initial_train, initial_train_labels, initial_test, initial_test_labels, dict_map_test_fold, params)
 		utils.save_features(train_features, test_features, int_initial_train_labels, int_initial_test_labels, int_initial_test_labels , params)
 	
 	train_i3d_features.append(train_features)
@@ -237,7 +245,7 @@ if __name__ == '__main__':
 	except Exception as e:
 		print(e)
 		params['model_type'] = 'triplet'
-		train_features_ti3d, test_features_ti3d, hist_triplet, ti3d_model, ti3d_model_weights = finetune_i3d.finetune_triplet_net(x_train = train_features, int_y_train = int_initial_train_labels, x_test = test_features, params = params)
+		train_features_ti3d, test_features_ti3d, hist_triplet, ti3d_model, ti3d_model_weights = finetune_i3d_hmdb51.finetune_triplet_net(x_train = train_features, int_y_train = int_initial_train_labels, x_test = test_features, params = params)
 		utils.save_ti3d_model(ti3d_model,ti3d_model_weights, params) #very expensive storage
 		utils.save_ti3d_features(train_features_ti3d, test_features_ti3d, int_initial_train_labels, int_initial_test_labels, int_initial_test_labels , params)
 		#K.clear_session() # this is very important
@@ -245,7 +253,7 @@ if __name__ == '__main__':
 		print(train_features_ti3d.shape)
 	'''
 	params['model_type'] = 'triplet'
-	train_features_ti3d, test_features_ti3d, hist_triplet, ti3d_model, ti3d_model_weights = finetune_i3d.finetune_triplet_net(x_train = train_features, int_y_train = int_initial_train_labels, x_test = test_features, params = params)
+	train_features_ti3d, test_features_ti3d, hist_triplet, ti3d_model, ti3d_model_weights = finetune_i3d_hmdb51.finetune_triplet_net(x_train = train_features, int_y_train = int_initial_train_labels, x_test = test_features, params = params)
 	train_features_ti3d, test_features_ti3d = np.array(train_features_ti3d) , np.array(test_features_ti3d)
 	
 	
@@ -291,7 +299,7 @@ if __name__ == '__main__':
 
 	#phase 2									-----------------------
 	
-	while total_classes < 101:
+	while total_classes < 51:
 		params['iteration'] += 1
 		#select z new classes
 
@@ -348,8 +356,8 @@ if __name__ == '__main__':
 		except Exception as e:
 			print(e)
 			params['model_type'] = 'cnn'
-			new_train_features = finetune_i3d.extract_features_single(model_weights, new_train, new_train_labels, dict_map_new_train, params, len(np.unique(initial_train_labels)))
-			new_test_features = finetune_i3d.extract_features_single(model_weights, new_test, new_test_labels, dict_map_new_test, params, len(np.unique(initial_train_labels)))
+			new_train_features = finetune_i3d_hmdb51.extract_features_single(model_weights, new_train, new_train_labels, dict_map_new_train, params, len(np.unique(initial_train_labels)))
+			new_test_features = finetune_i3d_hmdb51.extract_features_single(model_weights, new_test, new_test_labels, dict_map_new_test, params, len(np.unique(initial_train_labels)))
 			utils.save_features(new_train_features, new_test_features, int_new_train_labels, int_new_test_labels, int_new_test_labels , params, prefix='phase_2')
 			
 		train_i3d_features.append(new_train_features)
@@ -369,8 +377,8 @@ if __name__ == '__main__':
 			print(e)
 			params['model_type'] = 'triplet'
 
-			new_train_triplet_features = finetune_i3d.extract_features_triplet_net(new_train_features, new_train_labels, params, warm_start_model = ti3d_model_weights)
-			new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_weights)
+			new_train_triplet_features = finetune_i3d_hmdb51.extract_features_triplet_net(new_train_features, new_train_labels, params, warm_start_model = ti3d_model_weights)
+			new_test_triplet_features = finetune_i3d_hmdb51.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_weights)
 			utils.save_ti3d_features(new_train_triplet_features, new_test_triplet_features, int_new_train_labels, int_new_test_labels, int_new_test_labels , params, prefix='phase_2')
 
 			#np.save('new_train_triplet_features_'+str(params['iteration'])+'.npy',new_train_triplet_features)
@@ -378,8 +386,8 @@ if __name__ == '__main__':
 		'''
 
 		params['model_type'] = 'triplet'
-		new_train_triplet_features = finetune_i3d.extract_features_triplet_net(new_train_features, new_train_labels, params, warm_start_model = ti3d_model_weights)
-		new_test_triplet_features = finetune_i3d.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_weights)
+		new_train_triplet_features = finetune_i3d_hmdb51.extract_features_triplet_net(new_train_features, new_train_labels, params, warm_start_model = ti3d_model_weights)
+		new_test_triplet_features = finetune_i3d_hmdb51.extract_features_triplet_net(new_test_features, new_test_labels, params, warm_start_model = ti3d_model_weights)
 
 
 
@@ -418,7 +426,7 @@ if __name__ == '__main__':
 		#update all sets with the latest ti3d weights
 
 
-		full_test_features_ti3d = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_weights)
+		full_test_features_ti3d = finetune_i3d_hmdb51.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_weights)
 		full_test_labels = flattened_test_i3d_labels.copy()
 		full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
 
@@ -520,7 +528,7 @@ if __name__ == '__main__':
 		
 		#validate  ----- OK
 		extreme_vectors = evm.extreme_vectors(evms_triplet)
-		extreme_vectors_t = finetune_i3d.extract_features_triplet_net(extreme_vectors_features_i3d, extreme_vectors_labels, params, warm_start_model = ti3d_model_weights)
+		extreme_vectors_t = finetune_i3d_hmdb51.extract_features_triplet_net(extreme_vectors_features_i3d, extreme_vectors_labels, params, warm_start_model = ti3d_model_weights)
 		extreme_vectors_t = np.array(extreme_vectors_t)
 		extreme_vectors = np.array(extreme_vectors)
 
@@ -555,7 +563,7 @@ if __name__ == '__main__':
 		#training set is now extreme vectors and rejected set (i3d features)
 		ti3d_finetune_set = np.concatenate((extreme_vectors_features_i3d,rejected_set_features_i3d))
 		ti3d_finetune_labels = np.concatenate((extreme_vectors_labels,hierarchical_preds))
-		train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental, ti3d_model_incremental_weights = finetune_i3d.finetune_triplet_net(x_train = ti3d_finetune_set, int_y_train = ti3d_finetune_labels, x_test = test_features, params = params, warm_start_model = ti3d_model_weights)
+		train_features_ti3d_incremental, test_features_ti3d_incremental, hist_triplet, ti3d_model_incremental, ti3d_model_incremental_weights = finetune_i3d_hmdb51.finetune_triplet_net(x_train = ti3d_finetune_set, int_y_train = ti3d_finetune_labels, x_test = test_features, params = params, warm_start_model = ti3d_model_weights)
 
 		#this is the extreme vectors ti3d incremental representation
 		extreme_vectors_features_ti3d_incremental = train_features_ti3d_incremental[0:extreme_vectors_features_i3d.shape[0]]
@@ -624,8 +632,8 @@ if __name__ == '__main__':
 
 		'''
 		params['model_type'] = 'phase_4_gold_ti3d_gold_evm'
-		train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
-		full_test_features_ti3d_gold = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
+		train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d_hmdb51.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
+		full_test_features_ti3d_gold = finetune_i3d_hmdb51.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
 		gold_evms = evm.fit(train_features_ti3d_gold, flattened_train_i3d_labels, params)
 		preds = evm.predict(gold_evms,full_test_features_ti3d_gold, params)
 		print('gold ti3d gold evm')
@@ -634,7 +642,7 @@ if __name__ == '__main__':
 
 
 		params['model_type'] = 'phase_4_fixed_ti3d_gold_evm'
-		train_features_ti3d_fixed= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
+		train_features_ti3d_fixed= finetune_i3d_hmdb51.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
 		gold_evms = evm.fit(train_features_ti3d_fixed, flattened_train_i3d_labels, params)
 		preds = evm.predict(gold_evms,full_test_features_ti3d_fixed, params)
 		print('fixed ti3d gold evm')
@@ -660,8 +668,8 @@ if __name__ == '__main__':
 				else:
 					params['model_type'] = 'phase_4_incremental_ti3d_gold_evm_tail_'+str(params['tail_size'])
 
-			train_features_ti3d_incremental= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
-			full_test_features_ti3d_incremental = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+			train_features_ti3d_incremental= finetune_i3d_hmdb51.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
+			full_test_features_ti3d_incremental = finetune_i3d_hmdb51.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_incremental_weights)
 			print(train_features_ti3d_incremental.shape, len(flattened_train_i3d_labels), train_features.shape)
 			
 
@@ -709,8 +717,8 @@ if __name__ == '__main__':
 				params['triplet_epochs'] = 1
 			else:
 				params['model_type'] = 'phase_4_gold_ti3d_gold_evm'
-			train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
-			full_test_features_ti3d_gold = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
+			train_features_ti3d_gold, _, hist_triplet, ti3d_model_gold, ti3d_model_gold_weights = finetune_i3d_hmdb51.finetune_triplet_net(x_train = flattened_train_i3d_features, int_y_train = flattened_train_i3d_labels, x_test = flattened_test_i3d_features, params = params, warm_start_model = None)
+			full_test_features_ti3d_gold = finetune_i3d_hmdb51.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_gold_weights)
 			gold_evms = evm.fit(train_features_ti3d_gold, flattened_train_i3d_labels, params)
 
 			preds = evm.predict(gold_evms,full_test_features_ti3d_gold, params)
@@ -733,9 +741,9 @@ if __name__ == '__main__':
 
 		if(params['ti3d_type'] == 'fixed'):		 
 
-			full_test_features_ti3d_fixed = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, full_test_labels, params, warm_start_model = fixed_ti3d_model_weights)
+			full_test_features_ti3d_fixed = finetune_i3d_hmdb51.extract_features_triplet_net(flattened_test_i3d_features, full_test_labels, params, warm_start_model = fixed_ti3d_model_weights)
 			params['model_type'] = 'phase_4_fixed_ti3d_gold_evm'
-			train_features_ti3d_fixed= finetune_i3d.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
+			train_features_ti3d_fixed= finetune_i3d_hmdb51.extract_features_triplet_net(flattened_train_i3d_features, flattened_train_i3d_labels, params, warm_start_model = fixed_ti3d_model_weights)
 			gold_evms = evm.fit(train_features_ti3d_fixed, flattened_train_i3d_labels, params)
 			preds = evm.predict(gold_evms,full_test_features_ti3d_fixed, params)
 			print('fixed ti3d gold evm')

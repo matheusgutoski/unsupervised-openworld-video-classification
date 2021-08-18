@@ -34,7 +34,7 @@ if __name__ == '__main__':
 	parser.add_argument('--tail_size', help='weibull tail size for evm. If < 1, uses ratio of data instead', type=float, default = 10)
 	parser.add_argument('--cover_threshold', help='evm cover threshold', type=float, default = 0.1)
 	parser.add_argument('--classification_threshold', help='probability threshold for accepting points in evm', type=float, default = 0.001)
-	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'prototype_results/')
+	parser.add_argument('--output_path', help='Where to output results', type=str, default = 'openworld_results/')
 	parser.add_argument('--ti3d_type', help='ti3d type', type=str, default = 'incremental', choices = ['incremental', 'gold', 'fixed'])
 	parser.add_argument('--online', help='train ti3d in 1 epoch', action='store_true')
 	parser.add_argument('--incremental_evm', help='use incremental evm instead of gold standard', action='store_true')
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 	params['fold'] = 0
 
 	#ignore errors - ignores classification errors until phase 4. Applies to EVM rejection and clustering
-	params['ignore_errors'] = True
+	params['ignore_errors'] = False
 
 	#parameters for the cnn
 	params['train_ratio'] = args.train_ratio
@@ -387,12 +387,19 @@ if __name__ == '__main__':
 			rejected_set_labels = np.array(int_new_train_labels)
 		else:
 			pred = evm.predict(evms_triplet, new_train_triplet_features, params)
-			rejected_set_idx = np.where(np.array(pred)==0)[0]
+			#rejected_set_idx = np.where(np.array(pred)==0)[0]
+			rejected_set_idx = []
+			for i,p in enumerate(pred):
+				if str(p) == '0':
+					rejected_set_idx.append(i)
+			print(rejected_set_idx, pred)
+			#input('sdasd')
 			rejected_set_features_ti3d = np.array(new_train_triplet_features)[rejected_set_idx].copy() 
 			rejected_set_features_i3d = np.array(new_train_features)[rejected_set_idx].copy() 
 			rejected_set_labels = np.array(int_new_train_labels)[rejected_set_idx].copy()
-			print(pred)
-		
+			print(rejected_set_features_i3d.shape)
+			
+
 
 		
 
@@ -411,10 +418,14 @@ if __name__ == '__main__':
 
 		full_test_features_ti3d = finetune_i3d.extract_features_triplet_net(flattened_test_i3d_features, flattened_test_i3d_labels, params, warm_start_model = ti3d_model_weights)
 		full_test_labels = flattened_test_i3d_labels.copy()
+		full_train_labels = flattened_train_i3d_labels.copy()
+
 		full_open_test_labels = [x if x in int_known_classes else 0 for x in full_test_labels]
 
-
-
+		params['model_type'] = 'phase_2_train_set'
+		full_open_train_labels = [x if x in int_known_classes else 0 for x in int_new_train_labels]
+		evaluation.single_evaluation_openset(full_open_train_labels,pred,params)
+		utils.save_predictions(pred,int_new_train_labels, params, cm=False, prefix = '')
 
 
 
@@ -428,6 +439,7 @@ if __name__ == '__main__':
 		print('phase 2 evm predict')
 		pred = evm.predict(evms_triplet, full_test_features_ti3d, params)
 		evaluation.single_evaluation_openset(full_open_test_labels,pred,params)
+		input('??')
 		evaluation.single_evaluation_clustering(full_test_features_ti3d,full_open_test_labels,pred, params)
 
 
@@ -476,7 +488,7 @@ if __name__ == '__main__':
 			hierarchical_preds = rejected_set_labels
 		else:
 			hierarchical_preds = hierarchical.hierarchical(rejected_set_features_ti3d, n_clusters = estimated_k, affinity = 'euclidean', linkage = 'ward', distance_threshold= None, normalize_data = True)
-		
+			print(hierarchical_preds)
 
 
 		#assign labels
@@ -563,7 +575,7 @@ if __name__ == '__main__':
 
 		
 		if params['incremental_evm']:
-			updated_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, new_train_features)
+			updated_evms, new_extreme_vectors_i3d, new_extreme_vectors_labels = evm.increment_evm(extreme_vectors_features_ti3d_incremental, extreme_vectors_labels, new_train_features_ti3d_incremental, hierarchical_preds, params, rejected_set_features_i3d)
 				 
 			new_extreme_vectors_i3d = np.array(new_extreme_vectors_i3d)
 			print(new_extreme_vectors_i3d.shape, new_extreme_vectors_labels)
