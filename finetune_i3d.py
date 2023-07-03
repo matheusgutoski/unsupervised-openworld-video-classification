@@ -780,7 +780,6 @@ def extract_features_triplet_net(x_train, int_y_train, params, warm_start_model=
             current_class_idx = np.where(y == un)[0]
             current_class_data = x[current_class_idx]
             max_anchors_class = int(current_class_data.shape[0] / 3)
-            # input(current_class_data)
             current_class_embeddings = embeddings[current_class_idx]
             negative_idx = np.where(y != un)[0]
             negatives = x[negative_idx]

@@ -138,17 +138,6 @@ def read_flow_images(files_m, is_training):
 
     images = np.vstack(images)
     images = np.expand_dims(images, axis=0)
-    # images = np.expand_dims(images,axis=-1)
-    # perform augmentation here
-    # print images[:,:,:,:,2]
-    """
-        for i in range(3):
-                for j in range(64):
-                        cv2.imwrite('debug_images/flowdebug/'+str(i)+'_'+str(j)+'.jpg', images[0,j,:,:,i])
-                        cv2.imwrite('debug_images/flowdebug/'+'full'+str(j)+'.jpg', images[0,j,:,:,:])
-
-        raw_input('parou')
-        """
     images = rescale(images)
     images = resize_frames(images)
     if is_training == True:
