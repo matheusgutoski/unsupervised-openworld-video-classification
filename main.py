@@ -194,7 +194,6 @@ if __name__ == "__main__":
         filenames, unique_classes, params
     )
     print(len(train_labels), len(test_labels), len(train_labels) + len(test_labels))
-    # input('??')
     int_train_labels = utils.convert_labels_to_int(train_labels, dict_map)
     int_test_labels = utils.convert_labels_to_int(test_labels, dict_map)
 
@@ -202,8 +201,6 @@ if __name__ == "__main__":
 
     perm = np.random.permutation(np.array(unique_classes).shape[0])
     class_shuffle = np.array(unique_classes)[perm]
-    # print(class_shuffle)
-    # input('jeje')
     print(unique_classes, class_shuffle)
 
     # pick n classes between minclasses and maxclasses
@@ -262,7 +259,6 @@ if __name__ == "__main__":
             int_initial_test_labels,
         ) = utils.load_features(params)
     except Exception as e:
-        # input('?'+str(e))
         params["model_type"] = "cnn"
         model, hist_cnn, model_weights = finetune_i3d.finetune(
             initial_train, int_initial_train_labels, dict_map_train_fold, params
@@ -363,7 +359,6 @@ if __name__ == "__main__":
 
     # end phase 1
 
-    # input('end p 1')
 
     # phase 2									-----------------------
 
@@ -501,7 +496,6 @@ if __name__ == "__main__":
                 if str(p) == "0":
                     rejected_set_idx.append(i)
             print(rejected_set_idx, pred)
-            # input('sdasd')
             rejected_set_features_ti3d = np.array(new_train_triplet_features)[
                 rejected_set_idx
             ].copy()
@@ -558,7 +552,6 @@ if __name__ == "__main__":
         print("phase 2 evm predict")
         pred = evm.predict(evms_triplet, full_test_features_ti3d, params)
         evaluation.single_evaluation_openset(full_open_test_labels, pred, params)
-        input("??")
         evaluation.single_evaluation_clustering(
             full_test_features_ti3d, full_open_test_labels, pred, params
         )
@@ -568,13 +561,11 @@ if __name__ == "__main__":
 
         print(int_class_history)
         print(np.unique(full_test_labels))
-        # input('jeje')
 
         print("int class his:", int_class_history)
         print("full_open_test_labels", full_open_test_labels)
         print("full test labels", full_test_labels)
 
-        # input('end p 2')
 
         # end phase 2
 
@@ -1007,4 +998,3 @@ if __name__ == "__main__":
         if not params["incremental_evm"]:
             updated_evms = evms_triplet
         evms_triplet = updated_evms
-        # input('end of loop')

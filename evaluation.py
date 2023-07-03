@@ -105,7 +105,6 @@ def full_evaluation(results, params):
         print("tasks:", tasks)
         print("y", y)
         for h, t in enumerate(tasks):
-            # print('\n\n',h,'\n\n')
             relevant_x = [x[i] for i in range(len(y)) if y[i] in t]
             relevant_y = [y[i] for i in range(len(y)) if y[i] in t]
             relevant_preds = [preds[i] for i in range(len(y)) if y[i] in t]
@@ -113,18 +112,11 @@ def full_evaluation(results, params):
             print("relevant y", relevant_y)
             print(relevant_preds)
             print("task", t)
-            # print(y)
 
             cl_metrics = clustering_metrics(relevant_x, relevant_y, relevant_preds)
-            # print(relevant_y)
-            # print(relevant_preds)
-            # for k,v in cl_metrics.items():
-            # 	print(k,v)
 
             per_task_metrics.append(cl_metrics)
-            # input('end of task')
 
-        # input('end of iteration')
         per_iteration_metrics.append(per_task_metrics)
 
     # compute forgetting for each task, starting at task 0...n
@@ -137,14 +129,9 @@ def full_evaluation(results, params):
         metrics_current_task = []
 
         # find maximum value of each metric in task i
-        # print('current task:',i)
         for j, p in enumerate(per_iteration_metrics):
             if i <= j:
-                # print("current j",j)
-                # print(p[i])
                 metrics_current_task.append(p[i])
-                # input('')
-        # print(metrics_current_task)
 
         keys = metrics_current_task[0].keys()
         max_metrics_task = {}
@@ -157,10 +144,7 @@ def full_evaluation(results, params):
             max_metrics_task[k] = np.amax(current_metrics)
             forgetting_task[k] = np.amax(current_metrics) - current_metrics[-1]
 
-            # print(max_metrics_task[k])
-            # print(forgetting_task[k])
 
-            # input('m')
         forgetting_per_task.append(forgetting_task)
 
     return forgetting_per_task, per_iteration_metrics

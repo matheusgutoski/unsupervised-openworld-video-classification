@@ -720,7 +720,6 @@ if __name__ == "__main__":
         filenames, unique_classes, params
     )
     print(len(train_labels), len(test_labels), len(train_labels) + len(test_labels))
-    # input('??')
     int_train_labels = utils.convert_labels_to_int(train_labels, dict_map)
     int_test_labels = utils.convert_labels_to_int(test_labels, dict_map)
 
@@ -728,8 +727,6 @@ if __name__ == "__main__":
 
     perm = np.random.permutation(np.array(unique_classes).shape[0])
     class_shuffle = np.array(unique_classes)[perm]
-    # print(class_shuffle)
-    # input('jeje')
     print(unique_classes, class_shuffle)
 
     # pick n classes between minclasses and maxclasses
@@ -790,9 +787,7 @@ if __name__ == "__main__":
             int_train_labels,
             int_test_labels,
         ) = utils.load_features(params)
-        # input('')
     except Exception as e:
-        # input('?'+str(e))
         params["model_type"] = "cnn"
         model, hist_cnn, model_weights = finetune_i3d.finetune(
             initial_train, int_initial_train_labels, dict_map_train_fold, params
@@ -935,7 +930,6 @@ if __name__ == "__main__":
 			data[this_task]['val']['y'].append(dummy_label)
 		"""
 
-        # input('eae')
     for tt in range(n_tasks):
         data[tt]["ncla"] = len(np.unique(data[tt]["trn"]["y"]))
 
@@ -999,7 +993,6 @@ if __name__ == "__main__":
     for a, b in trn_load[0]:
         print(a.shape, b.shape)
 
-    # input('eeh')
 
     train_i3d_features.append(train_features)
     train_i3d_labels.append(int_initial_train_labels)
@@ -1038,7 +1031,6 @@ if __name__ == "__main__":
                 pred = torch.cat(outputs, dim=1).argmax(1)
                 all_preds.append(pred.cpu().numpy())
                 all_targets.append(t.cpu().numpy())
-            # input('a')
         all_preds = np.concatenate((all_preds))
         all_targets = np.concatenate((all_targets))
 
@@ -1059,8 +1051,6 @@ if __name__ == "__main__":
         utils.save_predictions(all_preds, all_targets, params, cm=True)
         params["iteration"] += 1
 
-        # input('aaaaa')
-
     sys.exit(0)
 
     # pred = clf.predict(evms_triplet, test_features, params)
@@ -1078,7 +1068,6 @@ if __name__ == "__main__":
 
     # end phase 1
 
-    input("end p 1")
 
     # phase 2					 				-----------------------
 
@@ -1194,7 +1183,6 @@ if __name__ == "__main__":
         print("full_open_test_labels", full_open_test_labels)
         print("full test labels", full_test_labels)
 
-        input("end p 2")
 
         # end phase 2
 
@@ -1273,4 +1261,3 @@ if __name__ == "__main__":
         utils.save_full_report(forgetting, full_evaluation, params)
         utils.save_predictions(preds, full_test_labels, params, cm=True)
 
-        input("end of loop")

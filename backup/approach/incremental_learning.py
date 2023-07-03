@@ -242,11 +242,7 @@ class Inc_Learning_Appr:
         if self.fix_bn and t > 0:
             self.model.freeze_bn()
         for images, targets in trn_loader:
-            # print(images.shape,targets)
-            # input('a')
-            # print(images.shape, targets, t)
-            # Forward current model
-            # print(self.device, self.model)
+
             self.model.to(self.device)
             outputs = self.model(images.to(self.device))
             loss = self.criterion(t, outputs, targets.to(self.device))

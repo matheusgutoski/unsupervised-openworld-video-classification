@@ -473,7 +473,6 @@ def plot_confusion_matrix(preds, y, output_path):
     fig.savefig(output_path + "confusion_matrix.png")
     plt.close()
 
-    # input('??')
 
 
 def plot_confusion_matrix_bars(preds, y, output_path):
@@ -506,7 +505,6 @@ def plot_confusion_matrix_bars(preds, y, output_path):
     x = np.array(range(101)).reshape(-1, 1)
     lr.fit(x, diag2)
 
-    # input('jeje')
     fig = plt.figure(figsize=(20, 20))
     plt.bar(range(1, 102), diag, width=0.7)
     plt.plot(
@@ -526,7 +524,6 @@ def plot_confusion_matrix_bars(preds, y, output_path):
     fig.savefig(output_path + "confusion_matrix_bars.png")
     plt.close()
 
-    # input('??')
 
 
 def save_predictions(preds, y, params, cm=True, prefix=""):
