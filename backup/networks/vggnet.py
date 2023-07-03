@@ -3,8 +3,8 @@ import torch.nn.functional as F
 
 
 class VggNet(nn.Module):
-    """ Following the VGGnet based on VGG16 but for smaller input (64x64)
-        Check this blog for some info: https://learningai.io/projects/2017/06/29/tiny-imagenet.html
+    """Following the VGGnet based on VGG16 but for smaller input (64x64)
+    Check this blog for some info: https://learningai.io/projects/2017/06/29/tiny-imagenet.html
     """
 
     def __init__(self, num_classes=1000):
@@ -41,7 +41,7 @@ class VggNet(nn.Module):
         # last classifier layer (head) with as many outputs as classes
         self.fc = nn.Linear(in_features=4096, out_features=num_classes, bias=True)
         # and `head_var` with the name of the head, so it can be removed when doing incremental learning experiments
-        self.head_var = 'fc'
+        self.head_var = "fc"
 
     def forward(self, x):
         h = self.features(x)

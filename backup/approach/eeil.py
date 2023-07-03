@@ -16,13 +16,50 @@ class Appr(Inc_Learning_Appr):
     Helpful code from https://github.com/arthurdouillard/incremental_learning.pytorch
     """
 
-    def __init__(self, model, device, nepochs=90, lr=0.1, lr_min=1e-6, lr_factor=10, lr_patience=5, clipgrad=10000,
-                 momentum=0.9, wd=0.0001, multi_softmax=False, wu_nepochs=0, wu_lr_factor=1, fix_bn=False,
-                 eval_on_train=False, logger=None, exemplars_dataset=None, lamb=1.0, T=2, lr_finetuning_factor=0.1,
-                 nepochs_finetuning=40, noise_grad=False):
-        super(Appr, self).__init__(model, device, nepochs, lr, lr_min, lr_factor, lr_patience, clipgrad, momentum, wd,
-                                   multi_softmax, wu_nepochs, wu_lr_factor, fix_bn, eval_on_train, logger,
-                                   exemplars_dataset)
+    def __init__(
+        self,
+        model,
+        device,
+        nepochs=90,
+        lr=0.1,
+        lr_min=1e-6,
+        lr_factor=10,
+        lr_patience=5,
+        clipgrad=10000,
+        momentum=0.9,
+        wd=0.0001,
+        multi_softmax=False,
+        wu_nepochs=0,
+        wu_lr_factor=1,
+        fix_bn=False,
+        eval_on_train=False,
+        logger=None,
+        exemplars_dataset=None,
+        lamb=1.0,
+        T=2,
+        lr_finetuning_factor=0.1,
+        nepochs_finetuning=40,
+        noise_grad=False,
+    ):
+        super(Appr, self).__init__(
+            model,
+            device,
+            nepochs,
+            lr,
+            lr_min,
+            lr_factor,
+            lr_patience,
+            clipgrad,
+            momentum,
+            wd,
+            multi_softmax,
+            wu_nepochs,
+            wu_lr_factor,
+            fix_bn,
+            eval_on_train,
+            logger,
+            exemplars_dataset,
+        )
         self.model_old = None
         self.lamb = lamb
         self.T = T
@@ -35,9 +72,14 @@ class Appr(Inc_Learning_Appr):
 
         # EEIL is expected to be used with exemplars. If needed to be used without exemplars, overwrite here the
         # `_get_optimizer` function with the one in LwF and update the criterion
-        have_exemplars = self.exemplars_dataset.max_num_exemplars + self.exemplars_dataset.max_num_exemplars_per_class
+        have_exemplars = (
+            self.exemplars_dataset.max_num_exemplars
+            + self.exemplars_dataset.max_num_exemplars_per_class
+        )
         if not have_exemplars:
-            warnings.warn("Warning: EEIL is expected to use exemplars. Check documentation.")
+            warnings.warn(
+                "Warning: EEIL is expected to use exemplars. Check documentation."
+            )
 
     @staticmethod
     def exemplars_dataset_class():
@@ -48,20 +90,43 @@ class Appr(Inc_Learning_Appr):
         """Returns a parser containing the approach specific parameters"""
         parser = ArgumentParser()
         # Added trade-off between the terms of Eq. 1 -- L = L_C + lamb * L_D
-        parser.add_argument('--lamb', default=1.0, type=float, required=False,
-                            help='Forgetting-intransigence trade-off (default=%(default)s)')
+        parser.add_argument(
+            "--lamb",
+            default=1.0,
+            type=float,
+            required=False,
+            help="Forgetting-intransigence trade-off (default=%(default)s)",
+        )
         # Page 6: "Based on our empirical results, we set T to 2 for all our experiments"
-        parser.add_argument('--T', default=2.0, type=float, required=False,
-                            help='Temperature scaling (default=%(default)s)')
+        parser.add_argument(
+            "--T",
+            default=2.0,
+            type=float,
+            required=False,
+            help="Temperature scaling (default=%(default)s)",
+        )
         # "The same reduction is used in the case of fine-tuning, except that the starting rate is 0.01."
-        parser.add_argument('--lr-finetuning-factor', default=0.01, type=float, required=False,
-                            help='Finetuning learning rate factor (default=%(default)s)')
+        parser.add_argument(
+            "--lr-finetuning-factor",
+            default=0.01,
+            type=float,
+            required=False,
+            help="Finetuning learning rate factor (default=%(default)s)",
+        )
         # Number of epochs for balanced training
-        parser.add_argument('--nepochs-finetuning', default=40, type=int, required=False,
-                            help='Number of epochs for balanced training (default=%(default)s)')
+        parser.add_argument(
+            "--nepochs-finetuning",
+            default=40,
+            type=int,
+            required=False,
+            help="Number of epochs for balanced training (default=%(default)s)",
+        )
         # the addition of noise to the gradients
-        parser.add_argument('--noise-grad', action='store_true',
-                            help='Add noise to gradients (default=%(default)s)')
+        parser.add_argument(
+            "--noise-grad",
+            action="store_true",
+            help="Add noise to gradients (default=%(default)s)",
+        )
         return parser.parse_known_args(args)
 
     def _train_unbalanced(self, t, trn_loader, val_loader):
@@ -91,12 +156,17 @@ class Appr(Inc_Learning_Appr):
         trn_dataset = trn_loader.dataset
         if balanced:
             indices = torch.randperm(len(trn_dataset))
-            trn_dataset = torch.utils.data.Subset(trn_dataset, indices[:len(exemplars_ds)])
+            trn_dataset = torch.utils.data.Subset(
+                trn_dataset, indices[: len(exemplars_ds)]
+            )
         ds = exemplars_ds + trn_dataset
-        return DataLoader(ds, batch_size=trn_loader.batch_size,
-                              shuffle=True,
-                              num_workers=trn_loader.num_workers,
-                              pin_memory=trn_loader.pin_memory)
+        return DataLoader(
+            ds,
+            batch_size=trn_loader.batch_size,
+            shuffle=True,
+            num_workers=trn_loader.num_workers,
+            pin_memory=trn_loader.pin_memory,
+        )
 
     def _noise_grad(self, parameters, iteration, eta=0.3, gamma=0.55):
         """Add noise to the gradients"""
@@ -120,7 +190,9 @@ class Appr(Inc_Learning_Appr):
             self._train_balanced(t, trn_loader, val_loader)
 
         # After task training： update exemplars
-        self.exemplars_dataset.collect_exemplars(self.model, loader, val_loader.dataset.transform)
+        self.exemplars_dataset.collect_exemplars(
+            self.model, loader, val_loader.dataset.transform
+        )
 
     def post_train_process(self, t, trn_loader):
         """Runs after training all the epochs of the task (after the train session)"""
@@ -168,6 +240,8 @@ class Appr(Inc_Learning_Appr):
             # take into account current head when doing balanced finetuning
             last_head_idx = t if self._finetuning_balanced else (t - 1)
             for i in range(last_head_idx):
-                loss += self.lamb * F.binary_cross_entropy(F.softmax(outputs[i] / self.T, dim=1),
-                                                           F.softmax(outputs_old[i] / self.T, dim=1))
+                loss += self.lamb * F.binary_cross_entropy(
+                    F.softmax(outputs[i] / self.T, dim=1),
+                    F.softmax(outputs_old[i] / self.T, dim=1),
+                )
         return loss
